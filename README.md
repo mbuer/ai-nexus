@@ -4,7 +4,7 @@ Secure, reproducible home-lab platform for running isolated AI agents with contr
 
 ## Current status
 
-The base VM is installed and the isolated AI network path has been validated.
+The base VM and isolated network path are operational.
 
 ### VM baseline
 
@@ -20,17 +20,53 @@ The base VM is installed and the isolated AI network path has been validated.
 - Proxmox firewall: enabled
 - QEMU guest agent: installed
 
-A snapshot was created before network segmentation: `baseline-pre-network-segmentation`.
+Snapshot:
 
-### Network progress
+- `baseline-pre-network-segmentation`
 
-- Existing LAN path remains temporarily available on `ens18`.
-- A dedicated internal Proxmox bridge, `vmbr1`, was created for the AI segment.
-- OPNsense received a dedicated AI interface on `vtnet1`.
-- AI gateway: `10.50.0.1/24`
-- `ai-nexus` test address on `ens19`: `10.50.0.10/24`
-- An explicit ICMP rule allows the AI subnet to reach the OPNsense firewall for testing.
-- Connectivity from `ai-nexus` to `10.50.0.1` is confirmed.
+### Network
+
+AI Nexus is isolated from the main LAN and uses OPNsense as its only gateway.
+
+- AI subnet: `10.50.0.0/24`
+- OPNsense AI interface: `10.50.0.1`
+- AI Nexus: `10.50.0.10`
+- Proxmox bridge: `vmbr1`
+- AI Nexus interface: `ens19`
+- IPv6: not used on the AI segment
+- Direct LAN NIC: removed
+
+Validated:
+
+- AI Nexus -> OPNsense reachability
+- DNS via OPNsense
+- HTTPS egress via OPNsense
+- Outbound NAT
+- Firewall logging
+- WireGuard -> AI Nexus SSH
+- Local laptop -> AI Nexus SSH through OPNsense
+
+### Management access
+
+Remote management:
+
+```text
+Laptop / phone
+    -> WireGuard
+    -> OPNsense
+    -> 10.50.0.10:22
+```
+
+Local management:
+
+```text
+Laptop
+    -> static route for 10.50.0.0/24
+    -> 192.168.1.25 (OPNsense)
+    -> 10.50.0.10
+```
+
+The Windows static route is required because the Spectrum router does not provide the route to the isolated AI subnet.
 
 ## Design goals
 
@@ -39,18 +75,17 @@ A snapshot was created before network segmentation: `baseline-pre-network-segmen
 - Default-deny network boundaries
 - Least-privilege access
 - Centralized observability and auditability
-- Clear separation between agent runtime, tools, data, and secrets
+- Separation of agent runtime, tools, data, and secrets
 - Human approval for sensitive or destructive actions
 
 ## Next steps
 
-1. Make the AI interface configuration persistent.
-2. Define controlled DNS and Internet egress through OPNsense.
-3. Verify routing and logging.
-4. Remove the temporary direct LAN path from `ai-nexus`.
-5. Add WireGuard access into the AI subnet.
-6. Harden the base OS.
-7. Add configuration management.
-8. Add the container runtime and first limited-permission agent.
+1. Harden the Debian host.
+2. Review and tighten OPNsense egress rules.
+3. Add reproducible configuration management.
+4. Add container runtime.
+5. Add centralized logging and metrics.
+6. Define secrets handling.
+7. Deploy the first limited-permission agent.
 
 See `docs/` for architecture, network state, and decision records.
