@@ -21,11 +21,10 @@ The base VM, isolated AI network, controlled egress, and WireGuard management pa
 - Proxmox firewall: enabled
 - QEMU guest agent: installed
 
-Known snapshot:
+Known recovery snapshots:
 
 - `baseline-pre-network-segmentation`
-
-A second post-network-cleanup snapshot was taken before this documentation pass.
+- post-network-cleanup snapshot taken after the isolated network and WireGuard management path were stabilized
 
 ### Network
 
@@ -54,10 +53,11 @@ Validated:
 - home SSH over a dedicated local WireGuard profile
 - normal home-lab access remains local while the home WireGuard profile is active
 - Windows static route workaround removed
+- GitHub SSH works over TCP/443 without opening generic outbound TCP/22
 
 ### Management access
 
-AI Nexus management now uses WireGuard both at home and away.
+AI Nexus management uses WireGuard both at home and away.
 
 #### Away / work profile
 
@@ -68,8 +68,6 @@ AllowedIPs:
   10.50.0.0/24
 ```
 
-This provides access to both the normal home lab and AI Nexus when remote.
-
 #### Home profile
 
 ```text
@@ -78,9 +76,24 @@ AllowedIPs:
   10.50.0.0/24
 ```
 
-This sends only AI-subnet traffic through WireGuard. Normal `192.168.1.0/24` traffic stays directly on the home LAN.
+Normal `192.168.1.0/24` traffic stays directly on the home LAN.
 
 The two profiles reuse the same WireGuard peer credentials and should not be active simultaneously.
+
+## Controlled GitHub access
+
+The repository remote uses SSH, but generic outbound TCP/22 is intentionally not opened from the AI subnet.
+
+AI Nexus therefore uses GitHub's supported SSH-over-443 endpoint via `~/.ssh/config`:
+
+```sshconfig
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+```
+
+This preserves SSH-key authentication while keeping the outbound policy limited to the existing HTTPS/443 path.
 
 ## Why this design
 
@@ -95,6 +108,7 @@ The result is simpler:
 - one proven management boundary
 - consistent access control through OPNsense
 - home lab remains independent of OPNsense for ordinary LAN traffic
+- GitHub access works without broadly allowing outbound SSH
 
 ## Design goals
 
@@ -108,12 +122,13 @@ The result is simpler:
 
 ## Next steps
 
-1. Harden the Debian host.
-2. Review and tighten OPNsense egress rules.
-3. Add reproducible configuration management.
-4. Add container runtime.
-5. Add centralized logging and metrics.
-6. Define secrets handling.
-7. Deploy the first limited-permission agent.
+1. Complete a sustained traffic stability test.
+2. Harden the Debian host.
+3. Review and tighten OPNsense egress rules.
+4. Add reproducible configuration management.
+5. Add container runtime.
+6. Add centralized logging and metrics.
+7. Define secrets handling.
+8. Deploy the first limited-permission agent.
 
 See `docs/` for architecture, networking, management access, troubleshooting history, and decision records.
