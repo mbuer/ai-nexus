@@ -1,74 +1,131 @@
 # Network
 
-## Target topology
+## Topology
 
 ```text
-Home LAN / Internet
-        |
-    OPNsense
-        |
-   AI 10.50.0.1/24
-        |
-      vmbr1
-        |
-    ai-nexus
-   10.50.0.10/24
+Internet
+   |
+Spectrum router
+192.168.1.1
+   |
+Home LAN 192.168.1.0/24
+   |
+OPNsense 192.168.1.25
+   |
+AI 10.50.0.1/24
+   |
+vmbr1
+   |
+ai-nexus 10.50.0.10/24
 ```
 
-## Current state
+## Proxmox
 
-### Proxmox
+`vmbr1` is an internal Linux bridge used only for the isolated AI segment.
 
-- `vmbr1` is an internal Linux bridge.
-- It has no physical bridge port.
-- It has no Proxmox host IP assigned.
-- It exists only to connect OPNsense and isolated AI workloads.
+- No physical bridge port
+- No Proxmox host IP
+- OPNsense AI interface attached
+- AI Nexus attached
 
-### OPNsense
+## OPNsense
 
-- AI interface: `vtnet1`
+### AI interface
+
+- Device: `vtnet1`
 - Address: `10.50.0.1/24`
-- IPv6: disabled on the AI interface
+- IPv4: static
+- IPv6: disabled
 - Gateway: none
-- Private/bogon blocking: disabled because this is an internal RFC1918 network
+- Private network blocking: disabled
+- Bogon blocking: disabled
 
-### ai-nexus
+### Firewall policy
 
-- `ens18`: temporary existing LAN interface; still present during migration
-- `ens19`: isolated AI interface
-- Temporary test address: `10.50.0.10/24`
+Current explicit rules include:
 
-The isolated interface configuration is not yet persistent.
+- AI network -> This Firewall: ICMP for diagnostics
+- AI network -> This Firewall: DNS TCP/UDP 53
+- AI network -> Internet: HTTP/HTTPS egress
+- WireGuard subnet `10.10.10.0/24` -> `10.50.0.10:22`: SSH
 
-## Firewall validation
+Pass-rule logging is enabled during validation.
 
-A temporary explicit rule was added on the OPNsense AI interface:
+### NAT
 
-- Action: Pass
-- Direction: In
-- Protocol: IPv4 ICMP
-- Source: AI network
-- Destination: This Firewall
+OPNsense uses Hybrid Source NAT.
 
-After applying the rule, `ai-nexus` successfully reached `10.50.0.1`.
+Automatic rules include the AI network, translating `10.50.0.0/24` to the OPNsense LAN address for outbound Internet access.
 
-This confirms the Layer 2/Layer 3 path:
+The existing manual WireGuard NAT rule remains unchanged.
+
+## AI Nexus
+
+Persistent Debian configuration:
 
 ```text
-ai-nexus ens19
-    -> vmbr1
-    -> OPNsense vtnet1
+auto ens19
+iface ens19 inet static
+    address 10.50.0.10/24
+    gateway 10.50.0.1
 ```
 
-## Intended policy
+The previous main-LAN NIC was removed after the isolated path and WireGuard management path were validated.
 
-The final policy should be default-deny and purpose-specific:
+Normal IPv4 traffic now exits through:
 
-- WireGuard -> AI VM: allow only required management services
-- AI -> home LAN: deny by default
-- AI -> Internet: explicitly controlled
-- AI -> DNS: explicitly controlled
-- Internet -> AI: no direct inbound exposure
-- IPv6: disabled until it is deliberately designed and filtered
+```text
+10.50.0.10
+    -> 10.50.0.1
+    -> OPNsense policy
+    -> NAT
+    -> Internet
+```
 
-The existing main-LAN path must remain only until routing, DNS, egress, and remote management through OPNsense have been validated.
+## Management access
+
+### Remote
+
+WireGuard clients include `10.50.0.0/24` in AllowedIPs.
+
+SSH is explicitly permitted from:
+
+```text
+10.10.10.0/24 -> 10.50.0.10:22
+```
+
+ICMP from WireGuard remains blocked by default, so ping/traceroute may fail even when SSH works.
+
+### Local laptop
+
+The Spectrum router does not provide a route to `10.50.0.0/24`, so the Windows laptop uses:
+
+```text
+10.50.0.0/24 via 192.168.1.25
+```
+
+Persistent Windows route:
+
+```cmd
+route -p add 10.50.0.0 mask 255.255.255.0 192.168.1.25 metric 1
+```
+
+Remove it with:
+
+```cmd
+route delete 10.50.0.0 mask 255.255.255.0 192.168.1.25
+```
+
+When WireGuard is active remotely, its direct route to `10.50.0.0/24` has a lower effective metric and is preferred over the local static route.
+
+## Validation
+
+Confirmed:
+
+- `10.50.0.10 -> 10.50.0.1` ICMP
+- DNS via `10.50.0.1`
+- HTTPS egress through OPNsense
+- outbound NAT
+- remote SSH over WireGuard
+- local SSH via OPNsense
+- firewall logs show expected allow/deny behavior
