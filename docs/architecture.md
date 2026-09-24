@@ -2,7 +2,16 @@
 
 ## Purpose
 
-AI Nexus is a home-lab execution platform for AI agents. The design prioritizes containment, reproducibility, explicit permissions, and independent observability.
+AI Nexus is a home-lab execution platform for AI agents.
+
+The architecture prioritizes:
+
+- containment
+- reproducibility
+- explicit permissions
+- controlled network access
+- independent observability
+- recoverability
 
 ## Principles
 
@@ -11,60 +20,150 @@ AI Nexus is a home-lab execution platform for AI agents. The design prioritizes 
 - Read and write capabilities should be separated.
 - Sensitive actions should require explicit approval.
 - Secrets must remain outside source control.
-- Workloads should be disposable where practical; persistent state should be separated.
+- Workloads should be disposable where practical.
+- Persistent state should be separated from disposable runtimes.
 - Audit data should eventually leave the agent VM so the agent cannot erase the only record of its actions.
+- Management access should use a narrow, explicit path rather than broad LAN exposure.
 
 ## Current platform
 
 ```text
-Home LAN / Internet
-        |
-     OPNsense
-   192.168.1.25
-        |
-        +-- WireGuard management
-        |
-     AI interface
-     10.50.0.1/24
-        |
-      vmbr1
-        |
-     ai-nexus
-     10.50.0.10
+                         Internet
+                            |
+                     Spectrum router
+                       192.168.1.1
+                            |
+                    Home LAN 192.168.1.0/24
+                            |
+                     OPNsense 192.168.1.25
+                       /            \
+              WireGuard             AI interface
+             10.10.10.0/24          10.50.0.1/24
+                                      |
+                                    vmbr1
+                                      |
+                                   ai-nexus
+                                  10.50.0.10
 ```
 
-### ai-nexus
+## AI Nexus VM
 
 - Debian 13.7
+- kernel `6.12.107+deb13-amd64`
 - 2 vCPU
 - 8 GB RAM
 - 32 GB disk
-- q35 + OVMF / UEFI
+- q35
+- OVMF / UEFI
 - VirtIO networking
+- VirtIO SCSI
+- QEMU guest agent
 - single active network path through `vmbr1`
 
-The previous direct LAN NIC has been removed.
+The previous direct home-LAN NIC has been removed.
 
-## Security boundary
+## Security boundaries
 
-OPNsense is the enforcement point between AI Nexus and the rest of the network.
+### 1. Proxmox VM boundary
 
-This creates a deliberate asymmetry:
+AI Nexus is its own VM rather than sharing the operating system of other home-lab services.
 
-- The AI segment depends on OPNsense.
-- The normal home network does not depend on OPNsense.
+### 2. Dedicated Layer-2 segment
 
-If OPNsense is unavailable, AI Nexus loses routed connectivity, but the rest of the home network continues to operate.
+The AI network exists on `vmbr1`, an internal Proxmox bridge with no physical uplink and no Proxmox host address.
 
-## Management model
+### 3. OPNsense Layer-3 boundary
 
-WireGuard is the proven management path and is stable from remote networks.
+OPNsense is the only gateway for AI Nexus.
 
-The direct local-LAN path using a client-side static route is currently under investigation because SSH sessions reset after establishing successfully.
+This centralizes:
 
-This is treated as a management-path usability issue rather than a failure of the isolation architecture.
+- firewall enforcement
+- DNS
+- NAT
+- egress control
+- traffic logging
+- management ingress
 
-The preferred simplification to test next is a dedicated home WireGuard profile that routes only `10.50.0.0/24`, leaving the normal `192.168.1.0/24` home-lab network local.
+### 4. WireGuard management boundary
+
+AI Nexus is not managed directly from the normal LAN.
+
+SSH management arrives through WireGuard:
+
+```text
+management client
+    -> WireGuard
+    -> OPNsense
+    -> 10.50.0.10:22
+```
+
+This is used both at home and remotely.
+
+## Deliberate asymmetry
+
+The AI segment depends on OPNsense.
+
+The normal home LAN does not.
+
+This is an important design choice: security controls for AI workloads can be strict without making the entire home network dependent on a Proxmox-hosted firewall VM.
+
+## Home vs remote management
+
+Two WireGuard client profiles provide different routing behavior while using the same peer identity.
+
+### Home
+
+```text
+Endpoint: 192.168.1.25:51820
+AllowedIPs: 10.50.0.0/24
+```
+
+Only AI-subnet traffic enters WireGuard. Normal home-lab traffic remains directly connected.
+
+### Away / work
+
+```text
+Endpoint: public WireGuard endpoint
+AllowedIPs:
+  192.168.1.0/24
+  10.50.0.0/24
+```
+
+Both home-lab and AI-subnet traffic enter WireGuard.
+
+This solves a practical limitation of the Spectrum router without making static routes part of the architecture.
+
+## Failure behavior
+
+### OPNsense unavailable
+
+Expected:
+
+- AI Nexus loses routed Internet access
+- AI Nexus loses DNS through OPNsense
+- WireGuard management path to AI Nexus is unavailable
+- ordinary home LAN devices continue operating through the Spectrum router
+
+### Spectrum Internet unavailable
+
+Expected:
+
+- home WireGuard management should still work because its endpoint is the local OPNsense address
+- remote WireGuard access is unavailable
+- AI Nexus loses Internet egress
+
+### AI Nexus unavailable
+
+No effect on the home LAN or OPNsense.
+
+## Recovery checkpoints
+
+A baseline snapshot exists from before network segmentation.
+
+A second snapshot was taken after network isolation, WireGuard management, DNS persistence, and troubleshooting cleanup were completed.
+
+Snapshots are recovery aids, not configuration management. The long-term goal remains reproducibility from repository-controlled configuration.
 
 ## Planned platform layers
 
@@ -76,3 +175,4 @@ The preferred simplification to test next is a dedicated home WireGuard profile 
 6. Secrets management
 7. Centralized logging and metrics
 8. Versioned agent definitions and infrastructure configuration
+9. Automated rebuild and recovery procedures
