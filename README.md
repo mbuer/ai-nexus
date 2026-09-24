@@ -44,7 +44,7 @@ Validated:
 - Outbound NAT
 - Firewall logging
 - WireGuard -> AI Nexus SSH
-- Local laptop -> AI Nexus SSH through OPNsense
+- Remote access from work over WireGuard is stable
 
 ### Management access
 
@@ -57,16 +57,15 @@ Laptop / phone
     -> 10.50.0.10:22
 ```
 
-Local management:
+Local management is currently under investigation. The Windows laptop has a static route:
 
 ```text
-Laptop
-    -> static route for 10.50.0.0/24
-    -> 192.168.1.25 (OPNsense)
-    -> 10.50.0.10
+10.50.0.0/24 via 192.168.1.25
 ```
 
-The Windows static route is required because the Spectrum router does not provide the route to the isolated AI subnet.
+This allows SSH to connect, but the local session becomes unstable and resets. Packet captures show retransmissions followed by a TCP reset from the Windows laptop. WireGuard access remains stable.
+
+Potential simplification for the next session: keep the current remote WireGuard profile for away/work use, and test a separate home profile that routes only `10.50.0.0/24` through WireGuard so normal `192.168.1.0/24` lab access stays local.
 
 ## Design goals
 
@@ -80,12 +79,13 @@ The Windows static route is required because the Spectrum router does not provid
 
 ## Next steps
 
-1. Harden the Debian host.
-2. Review and tighten OPNsense egress rules.
-3. Add reproducible configuration management.
-4. Add container runtime.
-5. Add centralized logging and metrics.
-6. Define secrets handling.
-7. Deploy the first limited-permission agent.
+1. Resolve or replace the local static-route management path.
+2. Harden the Debian host.
+3. Review and tighten OPNsense egress rules.
+4. Add reproducible configuration management.
+5. Add container runtime.
+6. Add centralized logging and metrics.
+7. Define secrets handling.
+8. Deploy the first limited-permission agent.
 
 See `docs/` for architecture, network state, and decision records.
