@@ -55,8 +55,6 @@ Properties:
 - AI Nexus NIC attached
 - no direct Layer-3 path from the Proxmox host into the AI subnet
 
-This keeps the AI subnet dependent on OPNsense for routed access.
-
 ## OPNsense
 
 ### LAN side
@@ -82,7 +80,7 @@ WireGuard network:
 10.10.10.0/24
 ```
 
-SSH to AI Nexus is allowed from the WireGuard subnet:
+SSH to AI Nexus is allowed from:
 
 ```text
 10.10.10.0/24 -> 10.50.0.10:22
@@ -93,15 +91,38 @@ SSH to AI Nexus is allowed from the WireGuard subnet:
 Intended long-term rules include:
 
 - AI network -> This Firewall: DNS TCP/UDP 53
-- AI network -> Internet: controlled HTTP/HTTPS egress
+- AI network -> Internet: HTTP/HTTPS egress
 - WireGuard subnet -> AI Nexus: SSH TCP 22
 
-Troubleshooting-only rules should not remain in the final configuration, including:
+Generic outbound SSH from AI Nexus to the Internet is not intentionally allowed.
 
-- temporary AI -> OPNsense ICMP rule
-- temporary direct LAN laptop -> AI Nexus SSH rule
+This is why a normal GitHub SSH remote on TCP/22 times out even though inbound management SSH works correctly.
 
-Pass-rule logging was enabled during validation and can be reduced later once normal behavior is well understood.
+### GitHub SSH over TCP/443
+
+AI Nexus keeps its GitHub SSH remote but redirects GitHub SSH to GitHub's supported TCP/443 endpoint:
+
+```sshconfig
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+```
+
+This allows:
+
+```text
+git@github.com:mbuer/ai-nexus.git
+```
+
+to continue using the existing SSH key without adding a broad outbound TCP/22 firewall rule.
+
+Validated:
+
+```bash
+ssh -T git@github.com
+git pull
+```
 
 ### NAT
 
@@ -125,7 +146,7 @@ iface ens19 inet static
 
 The previous direct LAN NIC was removed after the isolated path and WireGuard management path were validated.
 
-Normal IPv4 traffic therefore follows:
+Normal IPv4 traffic follows:
 
 ```text
 10.50.0.10
@@ -158,7 +179,7 @@ IPv4 name resolution and HTTPS egress were tested successfully against `deb.debi
 
 Direct local LAN management was intentionally abandoned.
 
-The working model is now WireGuard for both home and remote management.
+The working model is WireGuard for both home and remote management.
 
 ### Home profile
 
@@ -173,8 +194,6 @@ Behavior:
 192.168.1.0/24 -> direct home LAN
 10.50.0.0/24   -> WireGuard -> OPNsense -> AI
 ```
-
-This avoids interfering with normal access to home-lab devices.
 
 ### Away / work profile
 
@@ -215,8 +234,6 @@ When the Home WireGuard profile is active, Windows installs:
 10.50.0.0/24 -> On-link via WireGuard client address
 ```
 
-No client-side static route is required.
-
 ## Validation
 
 Confirmed:
@@ -229,20 +246,18 @@ Confirmed:
 - home SSH over WireGuard
 - home LAN remains directly reachable with the Home profile active
 - no persistent Windows route required
+- GitHub SSH over TCP/443
 - AI Nexus has no direct LAN NIC
 - IPv6 cannot bypass the AI firewall because it is not enabled on the AI segment
 
 ## Cleanup verification
 
-Two troubleshooting settings were tested but did not solve the old direct-LAN SSH problem:
+Troubleshooting settings tested during the abandoned direct-LAN path are not part of the intended design:
 
 - per-rule `Disable reply-to`
 - global `Disable force gateway`
+- direct LAN laptop -> AI Nexus SSH rule
+- temporary AI -> OPNsense ICMP rule
+- Windows persistent route
 
-They are not part of the intended final design.
-
-Verify after any future OPNsense restore that:
-
-- `Disable force gateway` is not left enabled solely because of this troubleshooting session
-- no old direct LAN -> AI SSH rule remains
-- no temporary AI -> OPNsense ICMP rule remains
+Verify after any future restore that these have not accidentally reappeared.
