@@ -33,8 +33,6 @@ If OPNsense is unavailable:
 - AI Nexus loses routed connectivity
 - WireGuard management of AI Nexus is unavailable
 
-This is intentional.
-
 ## Proxmox
 
 ### Main LAN
@@ -80,11 +78,20 @@ WireGuard network:
 10.10.10.0/24
 ```
 
+Management peers:
+
+```text
+Away / work laptop   10.10.10.3/32   dedicated keypair
+Home laptop          10.10.10.4/32   dedicated keypair
+```
+
 SSH to AI Nexus is allowed from:
 
 ```text
 10.10.10.0/24 -> 10.50.0.10:22
 ```
+
+The Home and Away profiles are separate peers. Reusing one peer identity for both profiles was tested and produced unstable behavior.
 
 ### AI firewall policy
 
@@ -96,8 +103,6 @@ Intended long-term rules include:
 
 Generic outbound SSH from AI Nexus to the Internet is not intentionally allowed.
 
-This is why a normal GitHub SSH remote on TCP/22 times out even though inbound management SSH works correctly.
-
 ### GitHub SSH over TCP/443
 
 AI Nexus keeps its GitHub SSH remote but redirects GitHub SSH to GitHub's supported TCP/443 endpoint:
@@ -108,14 +113,6 @@ Host github.com
     Port 443
     User git
 ```
-
-This allows:
-
-```text
-git@github.com:mbuer/ai-nexus.git
-```
-
-to continue using the existing SSH key without adding a broad outbound TCP/22 firewall rule.
 
 Validated:
 
@@ -129,8 +126,6 @@ git pull
 OPNsense uses Hybrid Source NAT.
 
 Automatic NAT covers the AI subnet for outbound Internet access.
-
-The existing WireGuard NAT configuration remains separate and unchanged.
 
 ## AI Nexus
 
@@ -164,28 +159,20 @@ AI Nexus uses OPNsense as its resolver:
 10.50.0.1
 ```
 
-`resolvconf` is installed so the DNS server is generated persistently from the interface configuration rather than maintained by hand in `/etc/resolv.conf`.
-
-Validated:
-
-```text
-/etc/resolv.conf
-nameserver 10.50.0.1
-```
-
-IPv4 name resolution and HTTPS egress were tested successfully against `deb.debian.org`.
+`resolvconf` is installed so DNS is generated persistently from the interface configuration.
 
 ## Management access
 
 Direct local LAN management was intentionally abandoned.
 
-The working model is WireGuard for both home and remote management.
-
 ### Home profile
 
 ```text
+Client address = 10.10.10.4/32
 Endpoint = 192.168.1.25:51820
 AllowedIPs = 10.50.0.0/24
+PersistentKeepalive = 25
+Keypair = dedicated Home keypair
 ```
 
 Behavior:
@@ -198,8 +185,10 @@ Behavior:
 ### Away / work profile
 
 ```text
+Client address = 10.10.10.3/32
 Endpoint = <public-wireguard-endpoint>:51820
 AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
+Keypair = dedicated Away keypair
 ```
 
 Behavior:
@@ -209,46 +198,27 @@ Behavior:
 10.50.0.0/24   -> WireGuard -> AI Nexus
 ```
 
-The same WireGuard peer credentials are reused across the two client profiles. Only one profile should be active at a time.
-
 ## Windows route state
 
-The previous persistent route:
+No persistent route is required.
 
-```text
-10.50.0.0/24 via 192.168.1.25
-```
-
-was removed.
-
-Current intended state:
-
-```text
-Persistent Routes:
-None
-```
-
-When the Home WireGuard profile is active, Windows installs:
-
-```text
-10.50.0.0/24 -> On-link via WireGuard client address
-```
+With the Home profile active, Windows installs `10.50.0.0/24` through the `10.10.10.4` WireGuard interface.
 
 ## Validation
 
 Confirmed:
 
-- `10.50.0.10 -> 10.50.0.1`
 - DNS through OPNsense
 - IPv4 HTTPS egress
 - outbound NAT
 - remote SSH over WireGuard
-- home SSH over WireGuard
+- Home SSH via dedicated `10.10.10.4` peer
+- Home SSH source observed as `10.10.10.4`
+- WireGuard handshakes refresh during active use
 - home LAN remains directly reachable with the Home profile active
 - no persistent Windows route required
 - GitHub SSH over TCP/443
 - AI Nexus has no direct LAN NIC
-- IPv6 cannot bypass the AI firewall because it is not enabled on the AI segment
 
 ## Cleanup verification
 
@@ -259,5 +229,3 @@ Troubleshooting settings tested during the abandoned direct-LAN path are not par
 - direct LAN laptop -> AI Nexus SSH rule
 - temporary AI -> OPNsense ICMP rule
 - Windows persistent route
-
-Verify after any future restore that these have not accidentally reappeared.
