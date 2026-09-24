@@ -45,7 +45,7 @@ Repository: `mbuer/ai-nexus`
 
 The repository is the source of truth for architecture, decisions, configuration, and future automation.
 
-Secrets, passwords, API keys, private SSH keys, and sensitive runtime data must not be committed.
+Secrets, passwords, API keys, private SSH keys, WireGuard private keys, and sensitive runtime data must not be committed.
 
 ## 2026-09-23 — Network isolation
 
@@ -76,7 +76,17 @@ AI Nexus uses OPNsense for:
 
 The intent is to tighten outbound access over time rather than granting unrestricted egress by default.
 
-## 2026-09-23 — Management access
+## 2026-09-23 — DNS through OPNsense
+
+AI Nexus uses OPNsense at `10.50.0.1` as its DNS resolver.
+
+`resolvconf` is installed and `dns-nameservers 10.50.0.1` is part of the persistent Debian interface configuration.
+
+This replaces the temporary manual edit of `/etc/resolv.conf`.
+
+IPv4 DNS and HTTPS egress were verified successfully.
+
+## 2026-09-23 — Remote management
 
 Remote management uses WireGuard.
 
@@ -86,32 +96,85 @@ Current explicit access:
 10.10.10.0/24 -> 10.50.0.10:22
 ```
 
-Remote access from work is stable and should remain unchanged.
+Remote access from work is stable.
 
-Local laptop access currently uses a static route through OPNsense because the Spectrum router does not provide the required route to the AI subnet.
+## 2026-09-23 — Reject client-side static routing as the normal management path
 
-The local static-route path is not yet considered reliable: SSH connects but later resets after retransmissions. This is a management-path issue, not evidence that the isolated AI segment or WireGuard path is failing.
-
-## 2026-09-23 — Local management simplification
-
-Rather than continuing to add client-specific routing exceptions, the preferred next experiment is a second WireGuard profile for home use:
+A Windows persistent route was tested:
 
 ```text
+10.50.0.0/24 via 192.168.1.25
+```
+
+The route allowed SSH to establish, but the connection later became unstable.
+
+Packet captures showed retransmissions followed by a TCP reset from the Windows client.
+
+The route was removed and is no longer part of the design.
+
+Rationale:
+
+- the Spectrum router does not provide the routing flexibility needed for a clean secondary-router design
+- client-specific static routes add operational complexity
+- the path was unreliable
+- WireGuard already provides a stable, explicit management boundary
+
+## 2026-09-23 — Dual WireGuard client profiles
+
+Management uses two client profiles with the same peer credentials but different endpoint/routing behavior.
+
+### Home profile
+
+```text
+Endpoint = 192.168.1.25:51820
 AllowedIPs = 10.50.0.0/24
 ```
 
-The existing away/work profile keeps:
+Purpose:
+
+- route only AI-subnet traffic through WireGuard
+- keep normal home-lab traffic on the local LAN
+- avoid NAT loopback/hairpin dependence on the public endpoint
+
+### Away / work profile
 
 ```text
+Endpoint = <public-wireguard-endpoint>:51820
 AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
 ```
 
-This would preserve direct local access to normal lab equipment while routing only the isolated AI subnet through WireGuard.
+Purpose:
 
-No decision has yet been made to remove the Windows static route; test the home WireGuard profile first.
+- provide remote access to both normal lab devices and AI Nexus
+
+Only one profile should be active at a time.
+
+## 2026-09-23 — Troubleshooting changes are not architecture
+
+The following were tested while diagnosing the direct-LAN SSH issue:
+
+- explicit LAN laptop -> AI Nexus SSH rule
+- temporary AI -> OPNsense ICMP rule
+- per-rule `Disable reply-to`
+- global `Disable force gateway`
+- Windows persistent route
+
+These are not part of the intended final architecture.
 
 ## 2026-09-23 — IPv6
 
 IPv6 is not enabled on the AI segment.
 
 This is deliberate. IPv6 will only be introduced once routing, firewall policy, and observability are designed explicitly for it.
+
+## 2026-09-23 — Snapshot after network cleanup
+
+A recovery snapshot was taken after:
+
+- isolated AI networking
+- WireGuard home/remote management
+- Windows static-route removal
+- persistent DNS configuration
+- troubleshooting cleanup
+
+The snapshot is a recovery checkpoint, not a substitute for future configuration management.
