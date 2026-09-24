@@ -1,171 +1,147 @@
-# Network Troubleshooting — 2026-09-23
+# Network Troubleshooting — 2026-09-23/24
 
 ## Summary
 
-The original goal was to manage AI Nexus directly from a Windows laptop on the home LAN while keeping AI Nexus isolated behind OPNsense.
+Two separate management-path problems were investigated:
 
-Because OPNsense is not the home's default router, the Spectrum router does not know that `10.50.0.0/24` exists behind `192.168.1.25`.
+1. direct LAN routing to the isolated AI subnet
+2. an initially unstable Home WireGuard profile
 
-A Windows static route was therefore tested.
+The final working design uses WireGuard for management with separate Home and Away peers.
 
-The route allowed SSH to connect but produced unstable sessions. After packet-level troubleshooting, the direct-LAN path was abandoned in favor of a cleaner WireGuard-only management model.
+## Direct-LAN path
 
-## Original direct-LAN path
+The Windows laptop used:
 
 ```text
-Windows laptop
-192.168.1.214
-    |
-static route:
 10.50.0.0/24 via 192.168.1.25
-    |
-OPNsense
-    |
-AI Nexus
-10.50.0.10
 ```
 
-## Symptom
+SSH connected but later reset.
 
-SSH connected normally and authentication completed.
+Testing ruled out:
 
-After a short period the client terminated with:
+- missing firewall permission
+- normal MTU failure
+- incorrect OPNsense routes
+- incorrect OPNsense ARP
+- Proxmox Wi-Fi bridging
+- sshd itself as the reset source
+- simple `reply-to` or force-gateway fixes
+
+A packet capture showed retransmissions followed by a TCP RST from the Windows client.
+
+The static-route approach was abandoned.
+
+## First Home WireGuard design
+
+A Home client profile was created by reusing the same WireGuard peer identity and address as the existing Away profile.
+
+Home routing was:
 
 ```text
-client_loop: send disconnect: Connection reset
+Endpoint = 192.168.1.25:51820
+AllowedIPs = 10.50.0.0/24
 ```
 
-## What was ruled out
+This avoided the Spectrum router's public-endpoint hairpin behavior and initially worked.
 
-### Missing basic firewall permission
-
-An explicit LAN rule was added for:
+However, it later showed a repeating failure pattern:
 
 ```text
-192.168.1.214 -> 10.50.0.10:22
+SSH works
+-> connection resets
+-> new SSH attempts time out
+-> restarting WireGuard restores access temporarily
 ```
 
-The issue remained.
+## Dedicated Home peer
 
-### MTU
-
-Windows successfully sent a DF ping with a 1472-byte payload:
-
-```cmd
-ping 10.50.0.10 -f -l 1472
-```
-
-This validated a normal 1500-byte IPv4 path.
-
-### OPNsense route table
-
-The route table correctly showed:
+A new Home peer was created with:
 
 ```text
-192.168.1.0/24 -> directly connected LAN
-10.50.0.0/24   -> directly connected AI
-default         -> 192.168.1.1
+Address = 10.10.10.4/32
+Keypair = unique Home keypair
+Endpoint = 192.168.1.25:51820
+AllowedIPs = 10.50.0.0/24
+PersistentKeepalive = 25
 ```
 
-### OPNsense ARP
+The original Away peer remained:
 
-The ARP entry for the laptop matched the laptop's actual MAC address.
+```text
+Address = 10.10.10.3/32
+Keypair = original Away keypair
+```
 
-### Proxmox Wi-Fi
+The new Home peer was added separately in OPNsense with the matching Windows public key and `10.10.10.4/32` as its Allowed IP.
 
-Proxmox was verified to use physical Ethernet `ents4` for `vmbr0`.
+## Validation
 
-The Wi-Fi interface was down.
+After reconnecting with the dedicated Home peer:
 
-### Debian SSH service
+- AI Nexus showed the SSH source as `10.10.10.4`
+- SSH remained stable during active use
+- WireGuard handshakes refreshed during active traffic
+- normal home-lab traffic remained local
+- no Windows static route was required
 
-The server continued transmitting during the failure.
+The evidence strongly suggests that reusing one WireGuard peer identity across the two profiles was the source of the Home tunnel instability.
 
-The final reset came from the Windows client rather than from sshd.
+## GitHub side issue
 
-### reply-to / force-gateway experiments
+`git pull` initially appeared to be another network failure.
 
-The following were tested:
+The Git remote was:
 
-- per-rule `Disable reply-to`
-- global `Disable force gateway`
+```text
+git@github.com:mbuer/ai-nexus.git
+```
 
-Neither solved the issue.
+The AI egress policy allowed HTTP/HTTPS but not generic outbound TCP/22.
 
-They are not required by the final design.
+GitHub SSH was therefore moved to GitHub's supported TCP/443 endpoint:
 
-## Packet-capture finding
+```sshconfig
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+```
 
-A tcpdump on AI Nexus showed:
+After that, `ssh -T git@github.com` and `git pull` worked without opening outbound TCP/22.
 
-- normal TCP handshake
-- normal SSH negotiation
-- successful login
-- retransmissions
-- client acknowledgements no longer advancing for some server data
-- eventual TCP RST from `192.168.1.214`
-
-The important conclusion was not that Windows itself was necessarily defective, but that the direct routed path was behaving unreliably enough to be a poor management foundation.
-
-## Why the issue was not pursued further
-
-The goal was secure, reliable management—not proving every detail of an awkward secondary-router edge case.
-
-Continuing would have added more:
-
-- client-specific routes
-- special firewall behavior
-- Spectrum-router dependencies
-- troubleshooting-only exceptions
-- operational knowledge required to maintain the path
-
-WireGuard was already stable remotely, so the better engineering decision was to reuse the proven management boundary.
-
-## Final solution
+## Final management model
 
 ### Home
 
 ```text
-Windows
+Windows Home peer 10.10.10.4
     |
-WireGuard
-Endpoint 192.168.1.25:51820
-AllowedIPs 10.50.0.0/24
+WireGuard to 192.168.1.25:51820
     |
 OPNsense
     |
-AI Nexus
+AI Nexus 10.50.0.10
 ```
 
 ### Away
 
 ```text
-Windows
+Windows Away peer 10.10.10.3
     |
-WireGuard
-Endpoint public:51820
-AllowedIPs 192.168.1.0/24, 10.50.0.0/24
+WireGuard to public endpoint
     |
 OPNsense
-    +-- home lab
-    +-- AI Nexus
+    +-- 192.168.1.0/24
+    +-- 10.50.0.0/24
 ```
-
-## Cleanup performed
-
-- Windows persistent `10.50.0.0/24 via 192.168.1.25` route removed
-- Home WireGuard profile created
-- remote WireGuard profile retained
-- temporary direct-LAN design rejected
-- AI DNS made persistent through `resolvconf`
-- IPv4 DNS and HTTPS egress validated
-- recovery snapshot taken after cleanup
 
 ## Lessons
 
-1. A secondary router behind a consumer gateway can provide useful segmentation, but management routing can become awkward when the primary router does not support static routes.
-2. A technically possible path is not automatically a good operational design.
-3. Packet captures were useful because they prevented random SSH/firewall changes from continuing indefinitely.
-4. WireGuard provides a cleaner management boundary than per-client static routing in this topology.
-5. Separate Home and Away profiles make split routing explicit and easy to reason about.
-6. The normal home network remains independent of OPNsense, which preserves the original architectural goal.
+1. Do not reuse one WireGuard peer identity for logically separate client profiles when a dedicated peer is easy to create.
+2. A technically possible routing workaround may still be a poor operational design.
+3. Packet captures prevent random firewall and SSH changes from becoming permanent configuration.
+4. Keep troubleshooting-only firewall changes out of the final architecture.
+5. Controlled egress can expose legitimate application assumptions, such as Git expecting outbound SSH/22.
+6. Prefer narrow exceptions such as GitHub SSH over 443 over broad firewall openings.
