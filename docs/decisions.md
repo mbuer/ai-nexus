@@ -86,9 +86,29 @@ Current explicit access:
 10.10.10.0/24 -> 10.50.0.10:22
 ```
 
-Local laptop access uses a static route through OPNsense because the Spectrum router does not provide the required route to the AI subnet.
+Remote access from work is stable and should remain unchanged.
 
-This is a pragmatic client-side workaround, not part of the AI security boundary.
+Local laptop access currently uses a static route through OPNsense because the Spectrum router does not provide the required route to the AI subnet.
+
+The local static-route path is not yet considered reliable: SSH connects but later resets after retransmissions. This is a management-path issue, not evidence that the isolated AI segment or WireGuard path is failing.
+
+## 2026-09-23 — Local management simplification
+
+Rather than continuing to add client-specific routing exceptions, the preferred next experiment is a second WireGuard profile for home use:
+
+```text
+AllowedIPs = 10.50.0.0/24
+```
+
+The existing away/work profile keeps:
+
+```text
+AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
+```
+
+This would preserve direct local access to normal lab equipment while routing only the isolated AI subnet through WireGuard.
+
+No decision has yet been made to remove the Windows static route; test the home WireGuard profile first.
 
 ## 2026-09-23 — IPv6
 
