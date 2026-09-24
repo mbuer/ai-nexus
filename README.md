@@ -50,8 +50,8 @@ Validated:
 - outbound NAT
 - firewall logging
 - remote SSH over WireGuard
-- home SSH over a dedicated local WireGuard profile
-- normal home-lab access remains local while the home WireGuard profile is active
+- stable home SSH over a dedicated WireGuard peer
+- normal home-lab access remains local while the Home profile is active
 - Windows static route workaround removed
 - GitHub SSH works over TCP/443 without opening generic outbound TCP/22
 
@@ -59,26 +59,26 @@ Validated:
 
 AI Nexus management uses WireGuard both at home and away.
 
-#### Away / work profile
+#### Away / work peer
 
-```text
-Endpoint: public WireGuard endpoint
-AllowedIPs:
-  192.168.1.0/24
-  10.50.0.0/24
-```
+- client address: `10.10.10.3/32`
+- existing dedicated keypair
+- endpoint: public WireGuard endpoint
+- AllowedIPs:
+  - `192.168.1.0/24`
+  - `10.50.0.0/24`
 
-#### Home profile
+#### Home peer
 
-```text
-Endpoint: 192.168.1.25:51820
-AllowedIPs:
-  10.50.0.0/24
-```
+- client address: `10.10.10.4/32`
+- separate dedicated keypair
+- endpoint: `192.168.1.25:51820`
+- AllowedIPs:
+  - `10.50.0.0/24`
 
 Normal `192.168.1.0/24` traffic stays directly on the home LAN.
 
-The two profiles reuse the same WireGuard peer credentials and should not be active simultaneously.
+The Home and Away profiles are separate WireGuard peers and do not share client identity.
 
 ## Controlled GitHub access
 
@@ -99,13 +99,15 @@ This preserves SSH-key authentication while keeping the outbound policy limited 
 
 The Spectrum router does not provide the static-routing flexibility needed for an elegant direct LAN -> AI subnet path while OPNsense remains a secondary router.
 
-A client-side Windows static route was tested but produced unstable SSH sessions. Rather than keep a brittle exception, management was moved fully to WireGuard.
+A client-side Windows static route was tested but produced unstable SSH sessions. Reusing the same WireGuard peer identity for both Home and Away profiles also produced instability.
 
-The result is simpler:
+The final management design uses separate WireGuard peers.
+
+The result is simpler and more deterministic:
 
 - no Windows persistent route
 - no direct LAN management dependency
-- one proven management boundary
+- unique peer identity per Home/Away profile
 - consistent access control through OPNsense
 - home lab remains independent of OPNsense for ordinary LAN traffic
 - GitHub access works without broadly allowing outbound SSH
@@ -122,7 +124,7 @@ The result is simpler:
 
 ## Next steps
 
-1. Complete a sustained traffic stability test.
+1. Continue observing Home WireGuard stability under normal use.
 2. Harden the Debian host.
 3. Review and tighten OPNsense egress rules.
 4. Add reproducible configuration management.
