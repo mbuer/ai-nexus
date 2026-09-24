@@ -15,7 +15,7 @@ WireGuard network   10.10.10.0/24
 AI network          10.50.0.0/24
 AI Nexus            10.50.0.10
 SSH                 TCP/22
-WireGuard            UDP/51820
+WireGuard           UDP/51820
 ```
 
 ## Home profile
@@ -91,6 +91,41 @@ Only the routing intent and endpoint differ.
 
 Do not activate both profiles simultaneously.
 
+## GitHub access from AI Nexus
+
+The Git remote uses SSH:
+
+```text
+git@github.com:mbuer/ai-nexus.git
+```
+
+The AI egress policy does not broadly allow outbound TCP/22.
+
+AI Nexus therefore uses:
+
+```text
+~/.ssh/config
+```
+
+with:
+
+```sshconfig
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+```
+
+This keeps the existing SSH key and Git remote while using TCP/443.
+
+Quick validation:
+
+```bash
+ssh -T git@github.com
+cd ~/projects/ai-nexus
+git pull
+```
+
 ## Windows cleanup
 
 The old workaround route is no longer required.
@@ -114,8 +149,6 @@ Persistent Routes:
 None
 ```
 
-When the Home profile is active, Windows should install `10.50.0.0/24` as an on-link WireGuard route automatically.
-
 ## OPNsense dependency
 
 Management requires:
@@ -125,6 +158,26 @@ Management requires:
 - AI interface `10.50.0.1/24` available
 
 No separate direct LAN -> AI SSH rule is required.
+
+## Stability validation
+
+For a practical management-path test, keep an SSH session active while generating outbound traffic from AI Nexus.
+
+Suggested checks:
+
+```bash
+ping -c 120 10.50.0.1
+curl -4 -L -o /dev/null https://speed.hetzner.de/100MB.bin
+git fetch --all
+```
+
+During the test:
+
+- keep the SSH session open
+- run commands interactively every few minutes
+- watch for freezes, resets, packet loss, or DNS failures
+
+A stable run under sustained traffic is stronger evidence than an idle SSH session alone.
 
 ## Quick troubleshooting
 
@@ -136,8 +189,6 @@ Check that the Home profile endpoint is:
 192.168.1.25:51820
 ```
 
-Do not use the public endpoint for the Home profile.
-
 ### Handshake works but SSH fails
 
 Check:
@@ -146,6 +197,22 @@ Check:
 2. OPNsense WireGuard firewall rule allows TCP/22 to `10.50.0.10`
 3. AI Nexus is listening on SSH
 4. `10.50.0.10` still uses `10.50.0.1` as its gateway
+
+### Git pull hangs
+
+Check whether GitHub SSH is still configured for TCP/443:
+
+```bash
+ssh -G github.com | grep -E '^(hostname|port|user) '
+```
+
+Expected:
+
+```text
+hostname ssh.github.com
+port 443
+user git
+```
 
 ### Home lab disappears when WireGuard starts
 
