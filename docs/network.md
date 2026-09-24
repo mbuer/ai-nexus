@@ -12,78 +12,120 @@ Home LAN 192.168.1.0/24
    |
 OPNsense 192.168.1.25
    |
-AI 10.50.0.1/24
+   +-- WireGuard 10.10.10.0/24
+   |
+AI interface 10.50.0.1/24
    |
 vmbr1
    |
 ai-nexus 10.50.0.10/24
 ```
 
+## Design intent
+
+The normal home network remains independent of OPNsense.
+
+The AI segment intentionally depends on OPNsense so AI Nexus has one controlled routing, firewall, NAT, DNS, and logging boundary.
+
+If OPNsense is unavailable:
+
+- normal home LAN operation continues
+- AI Nexus loses routed connectivity
+- WireGuard management of AI Nexus is unavailable
+
+This is intentional.
+
 ## Proxmox
 
-`vmbr0` is bridged to the physical Ethernet interface `ents4`.
+### Main LAN
 
-`vmbr1` is an internal Linux bridge used only for the isolated AI segment.
+`vmbr0` is bridged to physical Ethernet interface `ents4`.
 
-- No physical bridge port
-- No Proxmox host IP
-- OPNsense AI interface attached
-- AI Nexus attached
+The Proxmox Wi-Fi interface is down and is not part of the production path.
 
-The Proxmox Wi-Fi interface is down and is not part of this path.
+### AI bridge
+
+`vmbr1` is an internal Linux bridge used only for the isolated AI network.
+
+Properties:
+
+- no physical bridge port
+- no Proxmox host IP
+- OPNsense AI NIC attached
+- AI Nexus NIC attached
+- no direct Layer-3 path from the Proxmox host into the AI subnet
+
+This keeps the AI subnet dependent on OPNsense for routed access.
 
 ## OPNsense
 
+### LAN side
+
+- LAN address: `192.168.1.25/24`
+- upstream/default gateway: Spectrum router `192.168.1.1`
+
 ### AI interface
 
-- Device: `vtnet1`
-- Address: `10.50.0.1/24`
+- device: `vtnet1`
+- address: `10.50.0.1/24`
 - IPv4: static
 - IPv6: disabled
-- Gateway: none
-- Private network blocking: disabled
-- Bogon blocking: disabled
+- gateway: none
+- private network blocking: disabled
+- bogon blocking: disabled
 
-### Firewall policy
+### WireGuard
 
-Current explicit rules include:
+WireGuard network:
 
-- AI network -> This Firewall: ICMP for diagnostics
+```text
+10.10.10.0/24
+```
+
+SSH to AI Nexus is allowed from the WireGuard subnet:
+
+```text
+10.10.10.0/24 -> 10.50.0.10:22
+```
+
+### AI firewall policy
+
+Intended long-term rules include:
+
 - AI network -> This Firewall: DNS TCP/UDP 53
-- AI network -> Internet: HTTP/HTTPS egress
-- WireGuard subnet `10.10.10.0/24` -> `10.50.0.10:22`: SSH
-- Local management host `192.168.1.214` -> `10.50.0.10:22`: SSH
+- AI network -> Internet: controlled HTTP/HTTPS egress
+- WireGuard subnet -> AI Nexus: SSH TCP 22
 
-Pass-rule logging is enabled during validation.
+Troubleshooting-only rules should not remain in the final configuration, including:
+
+- temporary AI -> OPNsense ICMP rule
+- temporary direct LAN laptop -> AI Nexus SSH rule
+
+Pass-rule logging was enabled during validation and can be reduced later once normal behavior is well understood.
 
 ### NAT
 
 OPNsense uses Hybrid Source NAT.
 
-Automatic rules include the AI network, translating `10.50.0.0/24` to the OPNsense LAN address for outbound Internet access.
+Automatic NAT covers the AI subnet for outbound Internet access.
 
-The existing manual WireGuard NAT rule remains unchanged.
+The existing WireGuard NAT configuration remains separate and unchanged.
 
 ## AI Nexus
 
-Persistent Debian configuration:
+Persistent interface configuration:
 
 ```text
 auto ens19
 iface ens19 inet static
     address 10.50.0.10/24
     gateway 10.50.0.1
+    dns-nameservers 10.50.0.1
 ```
 
-System DNS was corrected to use OPNsense:
+The previous direct LAN NIC was removed after the isolated path and WireGuard management path were validated.
 
-```text
-nameserver 10.50.0.1
-```
-
-The previous main-LAN NIC was removed after the isolated path and WireGuard management path were validated.
-
-Normal IPv4 traffic now exits through:
+Normal IPv4 traffic therefore follows:
 
 ```text
 10.50.0.10
@@ -93,76 +135,114 @@ Normal IPv4 traffic now exits through:
     -> Internet
 ```
 
-## Management access
+## DNS
 
-### Remote
-
-WireGuard clients include `10.50.0.0/24` in AllowedIPs.
-
-SSH is explicitly permitted from:
+AI Nexus uses OPNsense as its resolver:
 
 ```text
-10.10.10.0/24 -> 10.50.0.10:22
+10.50.0.1
 ```
 
-Remote SSH from work has been stable.
+`resolvconf` is installed so the DNS server is generated persistently from the interface configuration rather than maintained by hand in `/etc/resolv.conf`.
 
-ICMP from WireGuard remains blocked by default, so ping/traceroute may fail even when SSH works.
+Validated:
 
-### Local laptop
+```text
+/etc/resolv.conf
+nameserver 10.50.0.1
+```
 
-The Spectrum router does not provide a route to `10.50.0.0/24`, so the Windows laptop currently uses:
+IPv4 name resolution and HTTPS egress were tested successfully against `deb.debian.org`.
+
+## Management access
+
+Direct local LAN management was intentionally abandoned.
+
+The working model is now WireGuard for both home and remote management.
+
+### Home profile
+
+```text
+Endpoint = 192.168.1.25:51820
+AllowedIPs = 10.50.0.0/24
+```
+
+Behavior:
+
+```text
+192.168.1.0/24 -> direct home LAN
+10.50.0.0/24   -> WireGuard -> OPNsense -> AI
+```
+
+This avoids interfering with normal access to home-lab devices.
+
+### Away / work profile
+
+```text
+Endpoint = <public-wireguard-endpoint>:51820
+AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
+```
+
+Behavior:
+
+```text
+192.168.1.0/24 -> WireGuard -> home lab
+10.50.0.0/24   -> WireGuard -> AI Nexus
+```
+
+The same WireGuard peer credentials are reused across the two client profiles. Only one profile should be active at a time.
+
+## Windows route state
+
+The previous persistent route:
 
 ```text
 10.50.0.0/24 via 192.168.1.25
 ```
 
-Persistent Windows route:
+was removed.
 
-```cmd
-route -p add 10.50.0.0 mask 255.255.255.0 192.168.1.25 metric 1
+Current intended state:
+
+```text
+Persistent Routes:
+None
 ```
 
-Remove it with:
+When the Home WireGuard profile is active, Windows installs:
 
-```cmd
-route delete 10.50.0.0 mask 255.255.255.0 192.168.1.25
+```text
+10.50.0.0/24 -> On-link via WireGuard client address
 ```
 
-This path is currently unstable: SSH connects, exchanges traffic, then resets.
+No client-side static route is required.
 
-## Troubleshooting checkpoint — 2026-09-23
+## Validation
 
 Confirmed:
 
-- DNS via `10.50.0.1`
-- HTTPS egress through OPNsense
+- `10.50.0.10 -> 10.50.0.1`
+- DNS through OPNsense
+- IPv4 HTTPS egress
 - outbound NAT
 - remote SSH over WireGuard
-- MTU test with 1472-byte ICMP payload + DF succeeds, confirming a 1500-byte path
-- OPNsense routing table is correct:
-  - `192.168.1.0/24` directly connected on LAN
-  - `10.50.0.0/24` directly connected on AI
-- OPNsense ARP for `192.168.1.214` matches the laptop MAC
-- Proxmox LAN bridge uses physical Ethernet `ents4`, not Wi-Fi
-- per-rule `Disable reply-to` did not fix local SSH
-- global `Disable force gateway` did not fix local SSH
+- home SSH over WireGuard
+- home LAN remains directly reachable with the Home profile active
+- no persistent Windows route required
+- AI Nexus has no direct LAN NIC
+- IPv6 cannot bypass the AI firewall because it is not enabled on the AI segment
 
-Packet captures show:
+## Cleanup verification
 
-- SSH establishes successfully
-- Debian continues transmitting
-- repeated TCP retransmissions occur
-- Windows eventually sends the TCP RST
+Two troubleshooting settings were tested but did not solve the old direct-LAN SSH problem:
 
-Do not treat the local static-route path as production-ready yet.
+- per-rule `Disable reply-to`
+- global `Disable force gateway`
 
-### Next diagnostic / design option
+They are not part of the intended final design.
 
-Prefer a simplification over additional one-off routing tweaks:
+Verify after any future OPNsense restore that:
 
-- keep the existing away/work WireGuard profile, which is already stable
-- test a separate home WireGuard profile with only:
-  - `10.50.0.0/24`
-
-This would keep normal `192.168.1.0/24` lab access local while routing only AI Nexus management through WireGuard.
+- `Disable force gateway` is not left enabled solely because of this troubleshooting session
+- no old direct LAN -> AI SSH rule remains
+- no temporary AI -> OPNsense ICMP rule remains
