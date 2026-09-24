@@ -2,9 +2,7 @@
 
 ## Purpose
 
-This document describes how to reach AI Nexus safely from home and while remote.
-
-AI Nexus does not expose a normal management path directly to the home LAN. SSH enters through WireGuard.
+AI Nexus management enters through WireGuard rather than directly from the home LAN.
 
 ## Addresses
 
@@ -12,6 +10,8 @@ AI Nexus does not expose a normal management path directly to the home LAN. SSH 
 Home LAN            192.168.1.0/24
 OPNsense LAN        192.168.1.25
 WireGuard network   10.10.10.0/24
+Away laptop peer    10.10.10.3/32
+Home laptop peer    10.10.10.4/32
 AI network          10.50.0.0/24
 AI Nexus            10.50.0.10
 SSH                 TCP/22
@@ -22,27 +22,37 @@ WireGuard           UDP/51820
 
 Use when physically connected to the home LAN.
 
+The Home profile is its own WireGuard peer with a unique keypair.
+
 ```ini
+[Interface]
+Address = 10.10.10.4/32
+PrivateKey = <home-private-key>
+
 [Peer]
+PublicKey = <OPNsense-instance-public-key>
 AllowedIPs = 10.50.0.0/24
 Endpoint = 192.168.1.25:51820
 PersistentKeepalive = 25
 ```
 
-The remaining client settings are copied from the existing working peer configuration.
+The corresponding OPNsense peer uses:
 
-Do not commit private keys to this repository.
+```text
+Public Key: <Home Windows public key>
+Allowed IPs: 10.10.10.4/32
+Instance: HomeWireGuard
+Keepalive: 25
+```
+
+Never commit WireGuard private keys.
 
 ### Expected routes
-
-With the Home profile active:
 
 ```text
 192.168.1.0/24 -> local Wi-Fi/Ethernet
 10.50.0.0/24   -> WireGuard
 ```
-
-There should be no Windows persistent route for `10.50.0.0/24`.
 
 ### Test
 
@@ -50,46 +60,47 @@ There should be no Windows persistent route for `10.50.0.0/24`.
 ssh mb@10.50.0.10
 ```
 
-The SSH login source seen by AI Nexus should be the WireGuard client address, not `192.168.1.x`.
+On AI Nexus:
 
-Normal home-lab access to `192.168.1.x` devices should continue to work directly.
+```bash
+who
+```
+
+The Home session should show source:
+
+```text
+10.10.10.4
+```
 
 ## Away / work profile
 
-Use when outside the home LAN.
+The existing Away profile remains a separate peer.
 
 ```ini
+[Interface]
+Address = 10.10.10.3/32
+PrivateKey = <away-private-key>
+
 [Peer]
+PublicKey = <OPNsense-instance-public-key>
 AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
 Endpoint = <public-wireguard-endpoint>:51820
-PersistentKeepalive = 25
 ```
 
-This profile provides access to:
+## Why separate peers
 
-- home-lab devices on `192.168.1.0/24`
-- AI Nexus on `10.50.0.0/24`
+An earlier Home profile reused the same peer identity and tunnel address as the Away profile.
 
-## Why two profiles
+That setup was unstable:
 
-Using the public WireGuard endpoint from inside the home network depends on NAT loopback/hairpin behavior from the Spectrum router.
+- SSH would work initially
+- the session would reset
+- new SSH attempts would time out
+- restarting the tunnel restored access temporarily
 
-Using `192.168.1.25:51820` at home avoids that dependency.
+The dedicated Home peer at `10.10.10.4` removed that ambiguity and has remained stable during active use.
 
-The Home profile intentionally excludes `192.168.1.0/24` from `AllowedIPs` so local lab traffic does not get pulled into the tunnel.
-
-## Reusing credentials
-
-The two profiles may reuse the same WireGuard client:
-
-- private key
-- tunnel address
-- server public key
-- peer identity
-
-Only the routing intent and endpoint differ.
-
-Do not activate both profiles simultaneously.
+Separate peer identities are therefore part of the intended design.
 
 ## GitHub access from AI Nexus
 
@@ -103,12 +114,6 @@ The AI egress policy does not broadly allow outbound TCP/22.
 
 AI Nexus therefore uses:
 
-```text
-~/.ssh/config
-```
-
-with:
-
 ```sshconfig
 Host github.com
     HostName ssh.github.com
@@ -116,31 +121,16 @@ Host github.com
     User git
 ```
 
-This keeps the existing SSH key and Git remote while using TCP/443.
-
 Quick validation:
 
 ```bash
 ssh -T git@github.com
-cd ~/projects/ai-nexus
 git pull
 ```
 
-## Windows cleanup
+## Windows route state
 
-The old workaround route is no longer required.
-
-If it ever reappears:
-
-```cmd
-route delete 10.50.0.0 mask 255.255.255.0 192.168.1.25
-```
-
-Confirm:
-
-```cmd
-route print
-```
+The old static route is no longer required.
 
 Expected:
 
@@ -153,54 +143,51 @@ None
 
 Management requires:
 
-- WireGuard tunnel active on OPNsense
+- WireGuard instance active on OPNsense
+- correct Home/Away peer configured
 - firewall permission from `10.10.10.0/24` to `10.50.0.10:22`
 - AI interface `10.50.0.1/24` available
 
-No separate direct LAN -> AI SSH rule is required.
+No direct LAN -> AI SSH rule is required.
 
-## Stability validation
+## Stability check
 
-For a practical management-path test, keep an SSH session active while generating outbound traffic from AI Nexus.
-
-Suggested checks:
+A useful Home validation sequence is:
 
 ```bash
-ping -c 120 10.50.0.1
-curl -4 -L -o /dev/null https://speed.hetzner.de/100MB.bin
-git fetch --all
+who
+git fetch
+curl -4 https://deb.debian.org/ -o /dev/null
 ```
 
-During the test:
+Watch the Windows WireGuard tunnel during active use.
 
-- keep the SSH session open
-- run commands interactively every few minutes
-- watch for freezes, resets, packet loss, or DNS failures
+Expected:
 
-A stable run under sustained traffic is stronger evidence than an idle SSH session alone.
+- SSH remains connected
+- latest handshake refreshes during active traffic
+- transfer counters increase
+- session source is `10.10.10.4`
 
 ## Quick troubleshooting
 
-### No handshake at home
-
-Check that the Home profile endpoint is:
-
-```text
-192.168.1.25:51820
-```
-
-### Handshake works but SSH fails
+### Home SSH times out
 
 Check:
 
-1. WireGuard client address is in `10.10.10.0/24`
-2. OPNsense WireGuard firewall rule allows TCP/22 to `10.50.0.10`
-3. AI Nexus is listening on SSH
-4. `10.50.0.10` still uses `10.50.0.1` as its gateway
+1. Home tunnel is active
+2. Home peer has `10.10.10.4/32`
+3. endpoint is `192.168.1.25:51820`
+4. OPNsense peer contains the matching Home public key
+5. OPNsense peer Allowed IPs contains `10.10.10.4/32`
+
+### Session comes from 10.10.10.3
+
+The Away profile is active. The Home profile should appear as `10.10.10.4`.
 
 ### Git pull hangs
 
-Check whether GitHub SSH is still configured for TCP/443:
+Verify GitHub SSH is using TCP/443:
 
 ```bash
 ssh -G github.com | grep -E '^(hostname|port|user) '
@@ -212,14 +199,4 @@ Expected:
 hostname ssh.github.com
 port 443
 user git
-```
-
-### Home lab disappears when WireGuard starts
-
-The Home profile probably includes `192.168.1.0/24` in `AllowedIPs`.
-
-It should include only:
-
-```text
-10.50.0.0/24
 ```
