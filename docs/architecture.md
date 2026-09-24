@@ -56,6 +56,16 @@ This creates a deliberate asymmetry:
 
 If OPNsense is unavailable, AI Nexus loses routed connectivity, but the rest of the home network continues to operate.
 
+## Management model
+
+WireGuard is the proven management path and is stable from remote networks.
+
+The direct local-LAN path using a client-side static route is currently under investigation because SSH sessions reset after establishing successfully.
+
+This is treated as a management-path usability issue rather than a failure of the isolation architecture.
+
+The preferred simplification to test next is a dedicated home WireGuard profile that routes only `10.50.0.0/24`, leaving the normal `192.168.1.0/24` home-lab network local.
+
 ## Planned platform layers
 
 1. Proxmox VM boundary
