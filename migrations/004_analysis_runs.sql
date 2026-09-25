@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     model TEXT NOT NULL,
     source_type TEXT NOT NULL,
     source_ref TEXT NOT NULL,
-    source_latest_hour TIMESTAMPTZ,
+    source_latest_hour TIMESTAMP,
     recent_hours INTEGER NOT NULL CHECK (recent_hours > 0),
     baseline_days INTEGER NOT NULL CHECK (baseline_days > 0),
     source_digest TEXT NOT NULL,
