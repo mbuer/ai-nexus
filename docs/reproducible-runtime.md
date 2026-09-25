@@ -84,3 +84,39 @@ Validated:
 - the temporary restore-test database was removed afterward
 
 This confirms that the current logical backup is not merely being created; it is usable for recovery.
+
+
+## Birdynator iteration
+
+For normal Birdynator code changes, use the narrow update path:
+
+```bash
+git pull
+make birdynator-update
+```
+
+This:
+
+1. applies pending SQL migrations
+2. reuses the cached Python base image by default
+3. rebuilds only the Birdynator image
+4. restarts only the Birdynator service
+5. runs Birdynator-specific verification
+
+To deliberately refresh the Python base image:
+
+```bash
+BIRDYNATOR_REFRESH_BASE=1 make birdynator-update
+```
+
+The image build runs Python bytecode compilation as an early syntax check.
+
+Use the broader deploy targets when supporting proxy/network infrastructure changes.
+
+## Analysis schema
+
+Migration `004_analysis_runs.sql` adds durable analysis history.
+
+It stores generated interpretations and their provenance separately from canonical memory and from authoritative BirdNET source data.
+
+The logical backup workflow automatically includes this table because it is part of the Birdynator PostgreSQL database.
