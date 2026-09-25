@@ -1,0 +1,18 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin birdynator
+
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY birdynator.py /app/birdynator.py
+RUN chown -R birdynator:birdynator /app
+
+USER 10001:10001
+ENTRYPOINT ["python", "/app/birdynator.py"]
+CMD ["serve"]
