@@ -19,6 +19,8 @@ A restore test successfully recovered:
 - the model-aware memory embedding schema
 - pgvector-backed objects
 
+Newer logical backups also include Birdynator's persisted analysis history (`analysis_runs`) because it lives in the same PostgreSQL database.
+
 ## Security model
 
 The final backup target should be outside the AI Nexus VM.
