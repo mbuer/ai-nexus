@@ -248,3 +248,54 @@ agent credential
 A temporary container authenticated using the agent credential, inserted a structured memory record, and successfully read it back.
 
 This proves the first per-agent persistence boundary before deploying a real agent process.
+
+
+## 2026-09-24 — First agent identity: Birdynator
+
+The generic first-agent identity was renamed to **Birdynator**.
+
+Purpose:
+
+> A long-term personal bird analyst that builds continuity across observations, environmental data, analysis, and time.
+
+Technical naming:
+
+```text
+display name: Birdynator
+slug:         birdynator
+container:    agent-birdynator
+database:     birdynator
+DB role:      birdynator
+DB secret:    birdynator-db-password
+```
+
+The PostgreSQL role, database, and local/Podman credential naming were updated to match. Birdynator retains ownership of the existing memory table and has no elevated PostgreSQL privileges.
+
+## 2026-09-24 — pgvector semantic-memory foundation
+
+The PostgreSQL service image was changed from the standard PostgreSQL 17 image to the pgvector PostgreSQL 17 image while reusing the existing persistent Podman volume.
+
+Validation confirmed that the existing Birdynator memory record survived the image change.
+
+The `vector` extension is enabled in the Birdynator database:
+
+```text
+pgvector 0.8.6
+```
+
+The memory table now includes:
+
+- `embedding vector(384)`
+- HNSW index using `vector_cosine_ops`
+
+The 384-dimensional shape is intended for a small local sentence-transformer embedding model. The embedding service itself is the next step.
+
+## 2026-09-24 — Agent memory snapshot
+
+Snapshot:
+
+```text
+baseline-agent-memory
+```
+
+This snapshot marks the first complete agent persistence milestone: rootless Podman runtime, isolated service network, PostgreSQL-backed per-agent memory, and verified Birdynator database identity.

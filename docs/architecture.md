@@ -145,14 +145,16 @@ PostgreSQL
 
 PostgreSQL is not published to the AI Nexus host or LAN.
 
-The first agent uses:
+The first named agent is **Birdynator**, a long-term personal bird analyst.
+
+Birdynator uses:
 
 - its own database role
 - its own database
 - its own credential
-- an agent-owned structured memory table
+- an agent-owned memory table
 
-The PostgreSQL superuser credential is not exposed to the agent.
+The PostgreSQL superuser credential is not exposed to Birdynator.
 
 The initial memory schema stores:
 
@@ -161,8 +163,9 @@ The initial memory schema stores:
 - JSON metadata
 - creation timestamp
 - update timestamp
+- 384-dimensional vector embedding
 
-Semantic/vector memory is planned as a later extension rather than being mixed into the first structured-memory milestone.
+pgvector 0.8.6 is enabled in the Birdynator database. The embedding column uses `vector(384)` and an HNSW index with cosine distance. The next runtime component is the local embedding service that will populate and query those vectors.
 
 ## Deliberate asymmetry
 
@@ -223,7 +226,7 @@ No effect on the home LAN or OPNsense.
 
 A baseline snapshot exists from before network segmentation.
 
-Additional recovery checkpoints were taken after SSH/firewall hardening and after the security/audit baseline was completed. The current security milestone snapshot is `baseline-security-audit`.
+Additional recovery checkpoints were taken after SSH/firewall hardening and after the security/audit baseline was completed. `baseline-agent-memory` captures the rootless Podman, PostgreSQL, and first-agent memory milestone.
 
 Snapshots are recovery aids, not configuration management.
 
@@ -233,7 +236,7 @@ Snapshots are recovery aids, not configuration management.
 2. OPNsense network enforcement
 3. Hardened Debian host — baseline complete
 4. Containerized workloads — rootless Podman baseline operational
-5. Per-agent identities and permissions — first database identity operational
+5. Per-agent identities and permissions — Birdynator database identity operational
 6. Secrets management — local Podman-secret pattern established
 7. Centralized logging and metrics
 8. Versioned agent definitions and infrastructure configuration

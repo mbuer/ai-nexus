@@ -63,22 +63,36 @@ Security properties:
 - the superuser password is stored in a local `600` file
 - the secret is injected through Podman rather than placed in the container command line
 
-## Per-agent database identity
+## Birdynator
 
-The first agent has:
+The first named agent is **Birdynator**.
+
+Birdynator is intended to be a long-term personal bird analyst that builds continuity across observations, environmental data, analysis, and time.
+
+Technical identity:
+
+```text
+slug:      birdynator
+container: agent-birdynator
+database:  birdynator
+DB role:   birdynator
+DB secret: birdynator-db-password
+```
+
+Birdynator has:
 
 - a dedicated PostgreSQL login role
 - a dedicated database
 - a separate credential
 - no PostgreSQL superuser or role-management privileges
 
-The agent credential is also provided through a Podman secret.
+The Birdynator credential is provided through a Podman secret.
 
 Agents should never receive the PostgreSQL superuser credential.
 
 ## Structured memory
 
-The first memory table is owned by the agent database role.
+The first memory table is owned by the Birdynator database role.
 
 Schema concept:
 
@@ -92,9 +106,9 @@ memory
 └── updated_at
 ```
 
-Indexes exist for memory type and JSON metadata.
+Indexes exist for memory type and JSON metadata. pgvector 0.8.6 is enabled, and the embedding column has an HNSW cosine index.
 
-The initial model deliberately separates structured memory from future semantic/vector search.
+Structured fields remain the authoritative memory record; vector search is an additional retrieval mechanism rather than a replacement for structured data.
 
 Example memory categories may include:
 
@@ -122,9 +136,10 @@ The PostgreSQL superuser credential was not required by the agent-side validatio
 
 ## Next steps
 
-1. Add pgvector support.
+1. Add a local embedding service for Birdynator.
 2. Define embedding generation and semantic-memory policy.
-3. Create the first real agent container.
-4. Limit each agent to only the database, tools, files, and network capabilities it needs.
-5. Define backup and restore procedures for persistent agent state.
-6. Move important audit/telemetry off the agent host over time.
+3. Populate and query Birdynator's first semantic memory vectors.
+4. Create the first real Birdynator agent container.
+5. Limit each agent to only the database, tools, files, and network capabilities it needs.
+6. Define backup and restore procedures for persistent agent state.
+7. Move important audit/telemetry off the agent host over time.

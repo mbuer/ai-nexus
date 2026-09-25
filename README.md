@@ -27,6 +27,7 @@ Known recovery snapshots:
 - post-network-cleanup snapshot taken after the isolated network and WireGuard management path were established
 - `baseline-ssh-firewall-hardening`
 - `baseline-security-audit`
+- `baseline-agent-memory`
 
 ## Network model
 
@@ -113,11 +114,14 @@ Current model:
 - no PostgreSQL host port is published
 - persistent database storage uses a Podman volume
 - PostgreSQL superuser credential is stored locally and exposed to the container through a Podman secret
-- the first agent has its own database role and database
-- the agent role has no elevated PostgreSQL attributes
-- the agent credential is separate from the PostgreSQL superuser credential
-- a structured `memory` table is owned by the agent role
+- the first named agent is **Birdynator**, a long-term personal bird analyst
+- Birdynator has its own database role and database
+- the Birdynator role has no elevated PostgreSQL attributes
+- the Birdynator credential is separate from the PostgreSQL superuser credential
+- the `memory` table is owned by Birdynator
 - authenticated read/write access was verified from a separate temporary container
+- pgvector 0.8.6 is enabled in the Birdynator database
+- the memory schema now includes a `vector(384)` embedding column with an HNSW cosine index
 
 See `docs/agent-runtime.md`.
 
@@ -169,8 +173,8 @@ Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-
 
 1. Continue observing Home WireGuard stability and capture the next failure without restarting the tunnel.
 2. Add reproducible configuration management.
-3. Add pgvector and evolve structured memory into semantic memory.
-4. Define the first real agent container and its per-agent permissions.
+3. Add the local embedding service and populate Birdynator's semantic memory vectors.
+4. Define Birdynator's first real agent container and per-agent permissions.
 5. Formalize secrets handling and backup/recovery for agent state.
 6. Add centralized off-host logging and metrics.
 7. Review and tighten OPNsense egress rules as agent requirements become known.
