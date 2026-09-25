@@ -26,21 +26,28 @@ Known recovery snapshots:
 - `baseline-pre-network-segmentation`
 - post-network-cleanup snapshot taken after the isolated network and WireGuard management path were stabilized
 
-### Network
+## Network model
 
-AI Nexus is isolated from the main LAN and uses OPNsense as its only gateway.
+AI Nexus is isolated from the main LAN and uses OPNsense as its only Layer-3 gateway.
 
-- Home LAN: `192.168.1.0/24`
-- Spectrum router: `192.168.1.1`
-- OPNsense LAN: `192.168.1.25`
-- WireGuard subnet: `10.10.10.0/24`
-- AI subnet: `10.50.0.0/24`
-- OPNsense AI interface: `10.50.0.1`
-- AI Nexus: `10.50.0.10`
-- Proxmox AI bridge: `vmbr1`
-- AI Nexus interface: `ens19`
-- IPv6: intentionally not used on the AI segment
-- Direct LAN NIC on AI Nexus: removed
+Public documentation intentionally uses symbolic names instead of the live environment's exact addressing:
+
+```text
+Internet
+   |
+Home router
+   |
+HOME_LAN
+   |
+OPNsense
+   +-- WG_NET
+   |
+AI_GATEWAY
+   |
+vmbr1
+   |
+AI_HOST
+```
 
 Validated:
 
@@ -52,33 +59,19 @@ Validated:
 - remote SSH over WireGuard
 - stable home SSH over a dedicated WireGuard peer
 - normal home-lab access remains local while the Home profile is active
-- Windows static route workaround removed
+- client-side static-route workaround removed
 - GitHub SSH works over TCP/443 without opening generic outbound TCP/22
 
-### Management access
+## Management access
 
 AI Nexus management uses WireGuard both at home and away.
 
-#### Away / work peer
+Home and Away use **separate peer identities and keypairs**.
 
-- client address: `10.10.10.3/32`
-- existing dedicated keypair
-- endpoint: public WireGuard endpoint
-- AllowedIPs:
-  - `192.168.1.0/24`
-  - `10.50.0.0/24`
+- Home profile routes only `AI_NET` through WireGuard and uses the firewall's local LAN endpoint.
+- Away profile routes both `HOME_LAN` and `AI_NET` through WireGuard and uses the public endpoint.
 
-#### Home peer
-
-- client address: `10.10.10.4/32`
-- separate dedicated keypair
-- endpoint: `192.168.1.25:51820`
-- AllowedIPs:
-  - `10.50.0.0/24`
-
-Normal `192.168.1.0/24` traffic stays directly on the home LAN.
-
-The Home and Away profiles are separate WireGuard peers and do not share client identity.
+Exact live addresses are intentionally not stored in this public repository.
 
 ## Controlled GitHub access
 
@@ -93,24 +86,26 @@ Host github.com
     User git
 ```
 
-This preserves SSH-key authentication while keeping the outbound policy limited to the existing HTTPS/443 path.
-
 ## Why this design
 
-The Spectrum router does not provide the static-routing flexibility needed for an elegant direct LAN -> AI subnet path while OPNsense remains a secondary router.
+The consumer home router does not provide the static-routing flexibility needed for an elegant direct LAN -> AI subnet path while OPNsense remains a secondary router.
 
-A client-side Windows static route was tested but produced unstable SSH sessions. Reusing the same WireGuard peer identity for both Home and Away profiles also produced instability.
+A client-side static route was tested but produced unstable SSH sessions. Reusing the same WireGuard peer identity for both Home and Away profiles also produced instability.
 
-The final management design uses separate WireGuard peers.
+The final management design uses separate WireGuard peers and keeps OPNsense as the single enforcement and observation point for the AI segment.
 
-The result is simpler and more deterministic:
+## Public-repository policy
 
-- no Windows persistent route
-- no direct LAN management dependency
-- unique peer identity per Home/Away profile
-- consistent access control through OPNsense
-- home lab remains independent of OPNsense for ordinary LAN traffic
-- GitHub access works without broadly allowing outbound SSH
+Architecture and decisions are public; live addressing is not.
+
+Use:
+
+- `config/network.example.yaml` for safe example values
+- `config/network.local.yaml` for real local values
+
+The local file is ignored by Git.
+
+Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-shared keys, tokens, WAN addresses, or screenshots containing sensitive network details.
 
 ## Design goals
 
