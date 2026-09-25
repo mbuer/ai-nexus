@@ -1,6 +1,8 @@
 # Local environment-specific configuration
 config/network.local.yaml
 config/*.local.yaml
+config/runtime.local.env
+config/images.lock.local
 
 # Secrets and credentials
 .env
