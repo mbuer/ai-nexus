@@ -1,22 +1,29 @@
 [Unit]
 Description=AI Nexus Birdynator agent runtime
-After=network-online.target ai-nexus-postgres.service ai-nexus-embedding.service ai-nexus-openai-proxy.service
-Requires=ai-nexus-postgres.service ai-nexus-embedding.service ai-nexus-openai-proxy.service
+After=network-online.target ai-nexus-postgres.service ai-nexus-embedding.service ai-nexus-openai-proxy.service ai-nexus-birdnet-proxy.service
+Requires=ai-nexus-postgres.service ai-nexus-embedding.service ai-nexus-openai-proxy.service ai-nexus-birdnet-proxy.service
 
 [Container]
 Image=localhost/ai-nexus-birdynator:1
 ContainerName=agent-birdynator
 Network=ai-nexus-internal
 Network=ai-nexus-proxy-link
+Network=ai-nexus-birdnet-link
 Secret=birdynator-db-password,type=mount,target=db-password
 Secret=openai-api-key,type=mount,target=openai-api-key
+Secret=birdnet-db-password,type=mount,target=birdnet-db-password
 Environment=BIRDYNATOR_DB_HOST=ai-nexus-postgres
 Environment=BIRDYNATOR_DB_NAME=birdynator
 Environment=BIRDYNATOR_DB_USER=birdynator
 Environment=BIRDYNATOR_DB_PASSWORD_FILE=/run/secrets/db-password
 Environment=OPENAI_API_KEY_FILE=/run/secrets/openai-api-key
 Environment=HTTPS_PROXY=http://ai-nexus-openai-proxy:8080
-Environment=NO_PROXY=ai-nexus-postgres,ai-nexus-embedding,localhost,127.0.0.1
+Environment=NO_PROXY=ai-nexus-postgres,ai-nexus-embedding,ai-nexus-birdnet-proxy,localhost,127.0.0.1
+Environment=BIRDNET_DB_HOST=ai-nexus-birdnet-proxy
+Environment=BIRDNET_DB_PORT=5432
+Environment=BIRDNET_DB_NAME=birdnet
+Environment=BIRDNET_DB_USER=birdynator_reader
+Environment=BIRDNET_DB_PASSWORD_FILE=/run/secrets/birdnet-db-password
 Environment=BIRDYNATOR_EMBEDDING_URL=http://ai-nexus-embedding:8000
 Environment=BIRDYNATOR_EMBEDDING_MODEL_SLUG=all-minilm-l6-v2-1110a24
 Environment=BIRDYNATOR_MODEL_FAST=gpt-5.6-luna
