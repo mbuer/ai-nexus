@@ -432,9 +432,11 @@ def analyze_birdnet(args):
     dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species)
 
     def encode(value):
+        if isinstance(value, Decimal):
+            return float(value)
         if hasattr(value, "isoformat"):
             return value.isoformat()
-        return value
+        return str(value)
 
     context = json.dumps(dataset, default=encode, separators=(",", ":"))
 
