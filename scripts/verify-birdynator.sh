@@ -51,7 +51,7 @@ api_health="$(podman exec agent-birdynator python /app/birdynator.py api-health)
     exit 1
 }
 
-if podman exec agent-birdynator python - <<'PY' >/dev/null 2>&1
+if podman exec -i agent-birdynator python - <<'PY' >/dev/null 2>&1
 import socket
 socket.create_connection(("1.1.1.1", 443), timeout=3).close()
 PY
