@@ -123,7 +123,7 @@ deep/escalation:        gpt-5.6-sol
 
 The OpenAI API credential remains a local runtime secret and is never committed to Git.
 
-The deployed Birdynator container does not yet have OpenAI network egress. Controlled egress is a separate security step.
+Birdynator reaches the OpenAI API only through a dedicated CONNECT proxy. The proxy allows the approved OpenAI API destination on TCP/443, preserves end-to-end TLS, is not attached to the agent-memory database network, and publishes no host port. Birdynator itself has no direct general Internet egress.
 
 ## Structured and semantic memory
 
@@ -184,3 +184,56 @@ Controlled OpenAI reasoning is now validated:
 3. Add structured provenance to generated analytical conclusions.
 4. Add observability for agent requests, model tier, latency, and token/cost usage without logging secrets or full private prompts by default.
 5. Continue recovery validation after agent memory and reasoning state expand.
+
+
+## BirdNET datasource
+
+BirdNET PostgreSQL remains an authoritative external datasource rather than becoming agent memory.
+
+Birdynator reaches it through a separate fixed-destination proxy:
+
+```text
+Birdynator
+    -> ai-nexus-birdnet-link
+    -> BirdNET fixed-destination proxy
+    -> BirdNET PostgreSQL
+```
+
+Security properties:
+
+- dedicated read-only PostgreSQL role
+- database sessions force `default_transaction_read_only=on`
+- proxy is not attached to the agent-memory service network
+- proxy publishes no host port
+- Birdynator is not given general LAN access
+- raw BirdNET rows are not duplicated into canonical memory
+
+See `docs/birdynator-analysis.md`.
+
+## Analysis history
+
+Generated BirdNET analyses are durable state, but they are not source truth and are kept separate from canonical memory.
+
+The `analysis_runs` table stores:
+
+- model
+- source reference/window
+- recent/baseline parameters
+- digest of the exact reasoning context
+- generated analysis text
+- creation time
+
+This keeps analysis provenance without copying the BirdNET dataset.
+
+## Fast development workflow
+
+For normal Birdynator code changes:
+
+```bash
+git pull
+make birdynator-update
+```
+
+The update target applies migrations, rebuilds only Birdynator, restarts it, and runs its verification checks. The cached Python base image is reused unless `BIRDYNATOR_REFRESH_BASE=1` is explicitly set.
+
+The container build runs `python -m py_compile` so syntax errors fail during image construction instead of at first execution.
