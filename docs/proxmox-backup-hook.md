@@ -50,3 +50,29 @@ The Proxmox host does not mount the T7 into AI Nexus and does not open SSH acces
 The hook uses the existing QEMU Guest Agent channel. Inside the guest it switches to the non-root `mb` account so the existing rootless Podman backup workflow is preserved.
 
 The logical dump remains a staging artifact inside the VM and is then included in the off-VM Proxmox backup stored on `backup-t7`.
+
+
+## Verified end-to-end
+
+The automated path has been tested successfully.
+
+Validation confirmed:
+
+- the `backup-start` hook fired for VM 104
+- QEMU Guest Agent executed the Birdynator logical backup inside AI Nexus
+- the logical dump completed successfully before VM capture
+- Proxmox then completed a snapshot backup of VM 104 to `backup-t7`
+- the resulting VM archive was written to the Samsung T7 backup storage
+- the fresh PostgreSQL dump was present inside the VM at backup time
+
+This establishes the intended recovery chain:
+
+```text
+fresh pg_dump
+    ->
+AI Nexus VM snapshot backup
+    ->
+backup-t7 / Samsung T7
+```
+
+The logical dump remains staged inside the VM, while the durable off-VM copy is provided by the Proxmox backup archive.
