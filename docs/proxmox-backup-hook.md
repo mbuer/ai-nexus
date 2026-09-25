@@ -49,7 +49,7 @@ The Proxmox host does not mount the T7 into AI Nexus and does not open SSH acces
 
 The hook uses the existing QEMU Guest Agent channel. Inside the guest it switches to the non-root `mb` account so the existing rootless Podman backup workflow is preserved.
 
-The logical dump remains a staging artifact inside the VM and is then included in the off-VM Proxmox backup stored on `backup-t7`.
+The logical dump remains a staging artifact inside the VM and is then included in the off-VM Proxmox backup stored on `backup-t7`. Because Birdynator analysis history lives in the same PostgreSQL database, current dumps include `analysis_runs` alongside canonical memory and embeddings.
 
 
 ## Verified end-to-end
