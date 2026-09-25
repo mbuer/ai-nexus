@@ -192,3 +192,59 @@ Description:
 ```text
 Hardened Debian baseline with root SSH disabled, nftables host firewall, unattended upgrades, persistent journald, and targeted auditd rules verified.
 ```
+
+
+## 2026-09-24 — Rootless Podman runtime
+
+Podman was selected as the initial container runtime.
+
+Rationale:
+
+- supports rootless containers cleanly
+- avoids making a privileged Docker daemon a general agent capability
+- integrates with systemd/journald
+- supports per-container networking and secrets
+- fits the least-privilege design of AI Nexus
+
+The verified runtime uses `crun`, `netavark`, journald logging, and seccomp.
+
+## 2026-09-24 — Internal container service network
+
+A dedicated internal Podman network is used for agent-to-service communication.
+
+Design goals:
+
+- supporting services are not published to the host or LAN by default
+- agents can reach only the services attached to the same internal network
+- live container subnet details remain environment-specific and are not stored in the public repository
+
+## 2026-09-24 — PostgreSQL as the initial agent memory backend
+
+PostgreSQL 17 was selected as the first persistent memory backend.
+
+Initial design:
+
+- PostgreSQL runs as a rootless container
+- no host port is published
+- persistent data uses a Podman volume
+- the PostgreSQL superuser credential is stored locally and injected through a Podman secret
+- each agent receives a separate database identity rather than using the PostgreSQL superuser
+- the first agent has its own role and database
+- the first agent role has no elevated PostgreSQL attributes
+
+The initial memory schema is intentionally structured and simple. Vector search will be added later rather than introducing a separate vector database at this stage.
+
+## 2026-09-24 — First agent memory validation
+
+The first agent database path was validated end to end:
+
+```text
+agent credential
+    -> internal Podman network
+    -> PostgreSQL
+    -> agent-owned memory table
+```
+
+A temporary container authenticated using the agent credential, inserted a structured memory record, and successfully read it back.
+
+This proves the first per-agent persistence boundary before deploying a real agent process.

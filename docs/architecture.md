@@ -110,6 +110,60 @@ management client
     -> AI_HOST:22
 ```
 
+## Agent runtime layer
+
+AI Nexus now uses rootless Podman for containerized workloads.
+
+Current runtime characteristics:
+
+- containers run without a privileged Docker daemon
+- OCI runtime: `crun`
+- network backend: `netavark`
+- container logs use journald
+- seccomp is enabled
+- persistent container state is separated from disposable container instances
+
+### Internal service network
+
+A dedicated internal Podman network provides service-to-service connectivity between agents and supporting services.
+
+The live container subnet is intentionally omitted from the public repository.
+
+### PostgreSQL memory service
+
+The first shared service is PostgreSQL 17.
+
+Design:
+
+```text
+agent container
+      |
+      | internal Podman network
+      |
+PostgreSQL
+```
+
+PostgreSQL is not published to the AI Nexus host or LAN.
+
+The first agent uses:
+
+- its own database role
+- its own database
+- its own credential
+- an agent-owned structured memory table
+
+The PostgreSQL superuser credential is not exposed to the agent.
+
+The initial memory schema stores:
+
+- memory type
+- content
+- JSON metadata
+- creation timestamp
+- update timestamp
+
+Semantic/vector memory is planned as a later extension rather than being mixed into the first structured-memory milestone.
+
 ## Deliberate asymmetry
 
 The AI segment depends on OPNsense.
@@ -178,9 +232,9 @@ Snapshots are recovery aids, not configuration management.
 1. Proxmox VM boundary
 2. OPNsense network enforcement
 3. Hardened Debian host — baseline complete
-4. Containerized workloads
-5. Per-agent identities and permissions
-6. Secrets management
+4. Containerized workloads — rootless Podman baseline operational
+5. Per-agent identities and permissions — first database identity operational
+6. Secrets management — local Podman-secret pattern established
 7. Centralized logging and metrics
 8. Versioned agent definitions and infrastructure configuration
 9. Automated rebuild and recovery procedures

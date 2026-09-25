@@ -4,7 +4,7 @@ Secure, reproducible home-lab platform for running isolated AI agents with contr
 
 ## Current status
 
-The base VM, isolated AI network, controlled egress, and WireGuard management path are operational.
+The base VM, isolated AI network, controlled egress, WireGuard management path, rootless container runtime, and first agent memory service are operational.
 
 ### VM baseline
 
@@ -90,6 +90,37 @@ Home and Away use **separate peer identities and keypairs**.
 
 Exact live addresses are intentionally not stored in this public repository.
 
+## Agent runtime
+
+The first runtime layer is now operational:
+
+- Podman 5.4.x
+- rootless containers under the non-root admin account
+- `crun` OCI runtime
+- `netavark` networking
+- journald container logging
+- seccomp enabled
+- dedicated internal Podman network for service-to-service traffic
+
+The internal service network is intentionally not documented with its live subnet.
+
+### Agent memory service
+
+PostgreSQL 17 is running as a rootless container on the isolated internal Podman network.
+
+Current model:
+
+- no PostgreSQL host port is published
+- persistent database storage uses a Podman volume
+- PostgreSQL superuser credential is stored locally and exposed to the container through a Podman secret
+- the first agent has its own database role and database
+- the agent role has no elevated PostgreSQL attributes
+- the agent credential is separate from the PostgreSQL superuser credential
+- a structured `memory` table is owned by the agent role
+- authenticated read/write access was verified from a separate temporary container
+
+See `docs/agent-runtime.md`.
+
 ## Controlled GitHub access
 
 The repository remote uses SSH, but generic outbound TCP/22 is intentionally not opened from the AI subnet.
@@ -138,10 +169,10 @@ Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-
 
 1. Continue observing Home WireGuard stability and capture the next failure without restarting the tunnel.
 2. Add reproducible configuration management.
-3. Add container runtime.
-4. Define per-agent permissions and secrets handling.
-5. Add centralized off-host logging and metrics.
-6. Review and tighten OPNsense egress rules as agent requirements become known.
-7. Deploy the first limited-permission agent.
+3. Add pgvector and evolve structured memory into semantic memory.
+4. Define the first real agent container and its per-agent permissions.
+5. Formalize secrets handling and backup/recovery for agent state.
+6. Add centralized off-host logging and metrics.
+7. Review and tighten OPNsense egress rules as agent requirements become known.
 
 See `docs/` for architecture, networking, management access, troubleshooting history, and decision records.
