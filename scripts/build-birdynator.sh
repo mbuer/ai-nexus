@@ -8,8 +8,15 @@ ensure_not_root
 BASE_TAG="docker.io/library/python:3.12-slim"
 IMAGE="localhost/ai-nexus-birdynator:1"
 
-echo "Pulling base image..."
-podman pull "$BASE_TAG" >/dev/null
+if ! podman image exists "$BASE_TAG"; then
+    echo "Base image missing; pulling $BASE_TAG..."
+    podman pull "$BASE_TAG" >/dev/null
+elif [[ "${BIRDYNATOR_REFRESH_BASE:-0}" == "1" ]]; then
+    echo "Refreshing base image $BASE_TAG..."
+    podman pull "$BASE_TAG" >/dev/null
+else
+    echo "Using cached base image (set BIRDYNATOR_REFRESH_BASE=1 to refresh)."
+fi
 
 digest="$(podman image inspect "$BASE_TAG" --format '{{.Digest}}')"
 [[ -n "$digest" && "$digest" != "<none>" ]] || {
