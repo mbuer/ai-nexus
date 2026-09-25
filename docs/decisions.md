@@ -315,3 +315,70 @@ Validation confirmed:
 Decision: snapshots remain useful recovery checkpoints, but Birdynator also requires logical PostgreSQL backups with tested restore procedures.
 
 The long-term backup target should live outside the AI Nexus VM and outside the agent runtime's normal write boundary.
+
+
+## 2026-09-24 — Controlled OpenAI egress
+
+Birdynator does not receive direct general Internet access.
+
+OpenAI API traffic uses a dedicated CONNECT proxy that:
+
+- allows only the approved OpenAI API destination on TCP/443
+- preserves end-to-end TLS
+- is isolated from the agent-memory database network
+- publishes no host port
+
+This preserves useful cloud reasoning without turning Internet access into an implicit agent capability.
+
+## 2026-09-24 — BirdNET remains authoritative source data
+
+The BirdNET monitoring PostgreSQL database remains the source of truth for detections, hourly activity, species activity, and weather.
+
+Decision:
+
+- do not copy raw BirdNET rows into Birdynator memory
+- use a dedicated read-only PostgreSQL role
+- force read-only database sessions
+- provide access through a fixed-destination datasource proxy
+- keep the datasource proxy separate from the agent-memory database network
+
+This gives Birdynator useful source access without granting broad LAN access.
+
+## 2026-09-24 — Recent activity is compared with historical context
+
+The default Birdynator analysis compares the latest 24 hours with the preceding 30-day baseline.
+
+The baseline excludes the recent window.
+
+Historical context includes mean, standard deviation, p10, median, p90, min/max, and sample count where the hourly source fields are numeric. Recent species-by-hour and confidence context are also supplied.
+
+These statistics are descriptive context. The reasoning model is instructed not to equate acoustic detections with bird abundance or infer causation from correlation.
+
+## 2026-09-24 — Persist analyses separately from canonical memory
+
+Successful BirdNET analyses are stored in `analysis_runs` rather than being inserted automatically into canonical memory.
+
+Each run records:
+
+- model
+- analysis parameters
+- source window/reference
+- SHA-256 digest of the exact reasoning context
+- generated analysis text
+- timestamp
+
+This preserves longitudinal analysis history and provenance while keeping observations, interpretations, and durable memory conceptually separate.
+
+## 2026-09-24 — Fast Birdynator development path
+
+Normal Birdynator code iteration uses:
+
+```bash
+make birdynator-update
+```
+
+The workflow applies pending migrations, reuses the cached Python base image by default, rebuilds only Birdynator, restarts it, and verifies its constrained service paths.
+
+A base-image refresh is explicit through `BIRDYNATOR_REFRESH_BASE=1`.
+
+The Birdynator image build also compiles the Python source so syntax failures are caught during the build.
