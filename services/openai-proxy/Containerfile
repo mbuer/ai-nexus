@@ -4,10 +4,10 @@ FROM ${BASE_IMAGE}
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN useradd --uid 10002 --create-home --shell /usr/sbin/nologin proxy
+RUN useradd --uid 10002 --create-home --shell /usr/sbin/nologin birdproxy
 WORKDIR /app
 COPY proxy.py /app/proxy.py
-RUN chown -R proxy:proxy /app
+RUN chown -R birdproxy:birdproxy /app
 
 USER 10002:10002
 ENTRYPOINT ["python", "/app/proxy.py"]
