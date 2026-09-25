@@ -62,3 +62,17 @@ fi
 
 echo "✓ OpenAI API reachable through controlled proxy"
 echo "✓ direct Internet egress blocked from Birdynator"
+
+
+birdnet_health="$(podman exec agent-birdynator python /app/birdynator.py birdnet-health)"
+[[ "$birdnet_health" == *'"status": "ok"'* ]] || {
+    echo "ERROR: Birdynator BirdNET datasource health check failed: $birdnet_health" >&2
+    exit 1
+}
+[[ "$birdnet_health" == *'"read_only": "on"'* ]] || {
+    echo "ERROR: BirdNET datasource session is not read-only: $birdnet_health" >&2
+    exit 1
+}
+
+echo "✓ BirdNET datasource reachable through isolated proxy"
+echo "✓ BirdNET datasource session is read-only"
