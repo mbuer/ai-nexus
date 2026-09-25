@@ -36,11 +36,11 @@ Repository: `mbuer/ai-nexus`
 
 The repository is the source of truth for architecture, decisions, configuration, and future automation.
 
-Secrets, passwords, API keys, private SSH keys, WireGuard private keys, and sensitive runtime data must not be committed.
+Secrets and live environment-specific addressing must not be committed.
 
 ## 2026-09-23 — Network isolation
 
-A dedicated Proxmox bridge (`vmbr1`) and OPNsense AI interface (`10.50.0.1/24`) were selected instead of attaching AI Nexus directly to the home LAN.
+A dedicated Proxmox bridge (`vmbr1`) and dedicated OPNsense AI interface were selected instead of attaching AI Nexus directly to the home LAN.
 
 The home network remains independent of OPNsense. The AI segment intentionally depends on it.
 
@@ -49,7 +49,7 @@ The home network remains independent of OPNsense. The AI segment intentionally d
 AI Nexus uses only:
 
 ```text
-10.50.0.10 -> 10.50.0.1 -> OPNsense
+AI_HOST -> AI_GATEWAY -> OPNsense
 ```
 
 The temporary direct-LAN NIC was removed.
@@ -67,9 +67,9 @@ Generic outbound TCP/22 is not intentionally permitted.
 
 ## 2026-09-23 — DNS through OPNsense
 
-AI Nexus uses OPNsense at `10.50.0.1` as its DNS resolver.
+AI Nexus uses OPNsense as its DNS resolver.
 
-`resolvconf` is installed and `dns-nameservers 10.50.0.1` is part of the persistent Debian interface configuration.
+`resolvconf` is installed and the DNS resolver is part of the persistent Debian interface configuration.
 
 ## 2026-09-23 — GitHub SSH over 443
 
@@ -79,7 +79,7 @@ This avoids opening generic outbound TCP/22 solely for repository access.
 
 ## 2026-09-23 — Reject client-side static routing as normal management
 
-A Windows persistent route to `10.50.0.0/24` via `192.168.1.25` was tested and later removed.
+A Windows persistent route to the AI subnet through OPNsense was tested and later removed.
 
 The path was operationally complex and unstable.
 
@@ -93,31 +93,41 @@ That produced intermittent failures:
 - subsequent SSH attempts timed out
 - restarting the tunnel temporarily restored access
 
-The final design uses distinct peers:
-
-```text
-Away / work peer: 10.10.10.3/32
-Home peer:        10.10.10.4/32
-```
-
-Each has its own WireGuard keypair.
+The final design uses distinct peers and separate keypairs.
 
 ### Home
 
 ```text
-Endpoint = 192.168.1.25:51820
-AllowedIPs = 10.50.0.0/24
+Endpoint = local OPNsense LAN address
+AllowedIPs = AI_NET
 PersistentKeepalive = 25
 ```
 
 ### Away / work
 
 ```text
-Endpoint = <public-wireguard-endpoint>:51820
-AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
+Endpoint = public WireGuard endpoint
+AllowedIPs = HOME_LAN, AI_NET
 ```
 
-The Home session was verified on AI Nexus as originating from `10.10.10.4`, and the tunnel remained stable during active use.
+The Home session was verified as originating from the dedicated Home peer and remained stable during active use.
+
+## 2026-09-24 — Sanitize public network documentation
+
+The repository remains public, but exact live network addressing is no longer part of public documentation.
+
+Rationale:
+
+- RFC1918 addresses are not Internet-routable, but publishing exact topology and management addressing provides unnecessary environmental detail.
+- The learning value is preserved by documenting roles and relationships symbolically.
+- Real values belong in a local ignored configuration file.
+
+Pattern:
+
+```text
+config/network.example.yaml   # safe example
+config/network.local.yaml     # real values, ignored
+```
 
 ## 2026-09-23 — Troubleshooting changes are not architecture
 
