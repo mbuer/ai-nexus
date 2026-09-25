@@ -7,6 +7,8 @@ import statistics
 import time
 from pathlib import Path
 from decimal import Decimal
+from collections import defaultdict
+from numbers import Number
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
