@@ -1,0 +1,21 @@
+[Unit]
+Description=AI Nexus OpenAI allowlist egress proxy
+After=network-online.target
+
+[Container]
+Image=localhost/ai-nexus-openai-proxy:1
+ContainerName=ai-nexus-openai-proxy
+Network=ai-nexus-proxy-link
+Network=ai-nexus-egress
+Environment=PROXY_LISTEN_HOST=0.0.0.0
+Environment=PROXY_LISTEN_PORT=8080
+Environment=PROXY_ALLOWED_HOST=api.openai.com
+Environment=PROXY_ALLOWED_PORT=443
+PodmanArgs=--memory=128m --cpus=0.25 --pids-limit=64 --read-only --tmpfs=/tmp:rw,noexec,nosuid,size=16m
+
+[Service]
+Restart=always
+TimeoutStartSec=30
+
+[Install]
+WantedBy=default.target
