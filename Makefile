@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: plan bootstrap migrate verify backup restore-test embedding-build embedding-deploy embedding-verify
+.PHONY: plan bootstrap migrate verify backup restore-test embedding-build embedding-deploy embedding-verify birdynator-build birdynator-deploy birdynator-verify
 
 plan:
 	@./scripts/plan.sh
@@ -28,3 +28,12 @@ embedding-deploy:
 
 embedding-verify:
 	@./scripts/verify-embedding.sh
+
+birdynator-build:
+	@bash ./scripts/build-birdynator.sh
+
+birdynator-deploy:
+	@bash ./scripts/deploy-birdynator.sh
+
+birdynator-verify:
+	@bash ./scripts/verify-birdynator.sh
