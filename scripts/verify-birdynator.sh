@@ -76,3 +76,8 @@ birdnet_health="$(podman exec agent-birdynator python /app/birdynator.py birdnet
 
 echo "✓ BirdNET datasource reachable through isolated proxy"
 echo "✓ BirdNET datasource session is read-only"
+
+
+podman exec agent-birdynator python /app/birdynator.py analysis-history --limit 1 >/dev/null
+
+echo "✓ persisted analysis schema reachable"
