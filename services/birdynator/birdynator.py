@@ -4,7 +4,7 @@ import json
 import os
 import time
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
 
@@ -15,6 +15,12 @@ DB_USER = os.getenv("BIRDYNATOR_DB_USER", "birdynator")
 DB_PASSWORD_FILE = os.getenv("BIRDYNATOR_DB_PASSWORD_FILE", "/run/secrets/db-password")
 EMBEDDING_URL = os.getenv("BIRDYNATOR_EMBEDDING_URL", "http://ai-nexus-embedding:8000")
 EMBEDDING_MODEL_SLUG = os.getenv("BIRDYNATOR_EMBEDDING_MODEL_SLUG", "all-minilm-l6-v2-1110a24")
+OPENAI_API_KEY_FILE = os.getenv("OPENAI_API_KEY_FILE", "/run/secrets/openai-api-key")
+OPENAI_API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/responses")
+OPENAI_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+MODEL_FAST = os.getenv("BIRDYNATOR_MODEL_FAST", "gpt-5.6-luna")
+MODEL_DEFAULT = os.getenv("BIRDYNATOR_MODEL_DEFAULT", "gpt-5.6-terra")
+MODEL_DEEP = os.getenv("BIRDYNATOR_MODEL_DEEP", "gpt-5.6-sol")
 
 
 def db_password():
@@ -116,26 +122,7 @@ def remember(args):
 
 
 def recall(args):
-    vector = vector_literal(embed(args.query))
-
-    with connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT m.id, m.memory_type, m.content, m.source_type, m.source_ref,
-                       m.confidence, (me.embedding <=> %s::vector) AS distance
-                FROM memory_embeddings me
-                JOIN memory m ON m.id = me.memory_id
-                JOIN embedding_models em ON em.id = me.model_id
-                WHERE em.slug = %s
-                  AND em.active = TRUE
-                  AND m.status = 'active'
-                ORDER BY me.embedding <=> %s::vector
-                LIMIT %s
-                """,
-                (vector, EMBEDDING_MODEL_SLUG, vector, args.limit),
-            )
-            rows = cur.fetchall()
+    rows = recall_rows(args.query, args.limit)
 
     output = [
         {
@@ -151,6 +138,120 @@ def recall(args):
     ]
     print(json.dumps(output, indent=2))
 
+
+
+def openai_key():
+    return Path(OPENAI_API_KEY_FILE).read_text().strip()
+
+
+def openai_opener():
+    if not OPENAI_PROXY:
+        raise RuntimeError("HTTPS_PROXY is required for controlled OpenAI egress")
+    return build_opener(ProxyHandler({"https": OPENAI_PROXY}))
+
+
+def openai_text(data):
+    parts = []
+    for item in data.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text" and content.get("text"):
+                parts.append(content["text"])
+    if not parts:
+        raise RuntimeError("OpenAI response contained no output_text")
+    return "\n".join(parts)
+
+
+def model_for_tier(tier):
+    return {
+        "fast": MODEL_FAST,
+        "default": MODEL_DEFAULT,
+        "deep": MODEL_DEEP,
+    }[tier]
+
+
+def recall_rows(query, limit=5):
+    vector = vector_literal(embed(query))
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT m.id, m.memory_type, m.content, m.source_type, m.source_ref,
+                       m.confidence, (me.embedding <=> %s::vector) AS distance
+                FROM memory_embeddings me
+                JOIN memory m ON m.id = me.memory_id
+                JOIN embedding_models em ON em.id = me.model_id
+                WHERE em.slug = %s
+                  AND em.active = TRUE
+                  AND m.status = 'active'
+                ORDER BY me.embedding <=> %s::vector
+                LIMIT %s
+                """,
+                (vector, EMBEDDING_MODEL_SLUG, vector, limit),
+            )
+            return cur.fetchall()
+
+
+def ask(args):
+    rows = recall_rows(args.question, args.limit)
+    memories = []
+    for row in rows:
+        memories.append({
+            "id": row[0],
+            "memory_type": row[1],
+            "content": row[2],
+            "source_type": row[3],
+            "source_ref": row[4],
+            "confidence": float(row[5]) if row[5] is not None else None,
+            "distance": float(row[6]),
+        })
+
+    context = "\n".join(
+        f"- [memory {m['id']}; type={m['memory_type']}; source={m['source_type']}] {m['content']}"
+        for m in memories
+    ) or "(no relevant stored memories)"
+
+    payload = json.dumps({
+        "model": model_for_tier(args.tier),
+        "store": False,
+        "instructions": (
+            "You are Birdynator, a careful personal bird-analysis agent. "
+            "Use the supplied memories as context, not as unquestionable truth. "
+            "Distinguish observations, user notes, conclusions, and hypotheses. "
+            "Do not invent observations or provenance. If context is insufficient, say so."
+        ),
+        "input": f"Question:\n{args.question}\n\nRelevant memories:\n{context}",
+    }).encode()
+
+    req = Request(
+        OPENAI_API_URL,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {openai_key()}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    with openai_opener().open(req, timeout=60) as response:
+        data = json.loads(response.read())
+
+    print(openai_text(data))
+
+
+def api_health():
+    req = Request(
+        "https://api.openai.com/v1/models",
+        headers={"Authorization": f"Bearer {openai_key()}"},
+    )
+    with openai_opener().open(req, timeout=30) as response:
+        data = json.loads(response.read())
+    ids = {item.get("id") for item in data.get("data", [])}
+    needed = {MODEL_FAST, MODEL_DEFAULT, MODEL_DEEP}
+    missing = sorted(needed - ids)
+    if missing:
+        raise RuntimeError(f"configured OpenAI models unavailable: {missing}")
+    print(json.dumps({"status": "ok", "models": sorted(needed)}))
 
 def serve():
     health()
@@ -177,6 +278,13 @@ def main():
     recall_parser.add_argument("query")
     recall_parser.add_argument("--limit", type=int, default=5)
 
+    ask_parser = sub.add_parser("ask")
+    ask_parser.add_argument("question")
+    ask_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
+    ask_parser.add_argument("--limit", type=int, default=5)
+
+    sub.add_parser("api-health")
+
     args = parser.parse_args()
 
     if args.command == "health":
@@ -187,6 +295,10 @@ def main():
         remember(args)
     elif args.command == "recall":
         recall(args)
+    elif args.command == "ask":
+        ask(args)
+    elif args.command == "api-health":
+        api_health()
 
 
 if __name__ == "__main__":
