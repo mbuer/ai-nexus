@@ -43,22 +43,39 @@ See [Birdynator analysis](docs/birdynator-analysis.md).
 ## Security model
 
 ```text
-BirdNET PostgreSQL
-      |
-      | read-only role
-      v
-BirdNET fixed-destination proxy
-      |
-      v
-   Birdynator
-      |
-      +--> local embedding service
-      |
-      +--> OpenAI CONNECT proxy --> api.openai.com:443
-      |
-      v
-Birdynator PostgreSQL
+                    Internet
+                       |
+                 Home router
+                       |
+                    HOME_LAN
+                       |
+                    OPNsense
+        gateway / firewall / NAT / DNS
+          /                       \
+   WireGuard                    AI segment
+   management                      |
+                                  v
+                           AI Nexus host
+                         Debian + nftables
+                                  |
+                           rootless Podman
+                                  |
+                           +-- Birdynator --+
+                           |       |        |
+                           |       |        |
+                    PostgreSQL  OpenAI   BirdNET
+                               proxy      proxy
+                                 |          |
+                                 v          v
+                         api.openai.com  BirdNET PostgreSQL
 ```
+
+The security model is layered:
+
+- **OPNsense** is the Layer-3 enforcement point for the AI segment. It provides the AI gateway, firewall policy, NAT, DNS, WireGuard management ingress, upstream egress control/logging, and the narrow routed path to the BirdNET datasource.
+- **Debian nftables** provides host-level defense in depth with default-drop inbound/forward policy.
+- **Rootless Podman networks and dedicated proxies** form the workload-capability boundary. Birdynator does not receive broad LAN or Internet access merely because one approved service needs it.
+- **PostgreSQL roles and separate databases** form the data-permission boundary.
 
 Important properties:
 
@@ -70,7 +87,7 @@ Important properties:
 - Raw BirdNET rows remain authoritative source data; they are not copied into agent memory.
 - Generated analyses are stored separately from canonical memory.
 
-See [Architecture](docs/architecture.md), [Agent runtime](docs/agent-runtime.md), and [Security baseline](docs/security-baseline.md).
+See [Architecture](docs/architecture.md), [Network](docs/network.md), [Agent runtime](docs/agent-runtime.md), and [Security baseline](docs/security-baseline.md).
 
 ## Normal operator workflow
 
