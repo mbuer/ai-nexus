@@ -156,16 +156,9 @@ Birdynator uses:
 
 The PostgreSQL superuser credential is not exposed to Birdynator.
 
-The initial memory schema stores:
+Canonical memory stores structured text/metadata plus provenance and lifecycle fields. Embeddings are stored separately in `memory_embeddings` and reference versioned entries in `embedding_models`, so memory is not tied permanently to one embedding model.
 
-- memory type
-- content
-- JSON metadata
-- creation timestamp
-- update timestamp
-- 384-dimensional vector embedding
-
-pgvector 0.8.6 is enabled in the Birdynator database. The embedding column uses `vector(384)` and an HNSW index with cosine distance. The next runtime component is the local embedding service that will populate and query those vectors.
+pgvector 0.8.6 is enabled. Birdynator uses a local 384-dimensional sentence-transformer embedding service on the internal service network.
 
 ## Deliberate asymmetry
 
@@ -255,3 +248,60 @@ Snapshots are recovery aids, not configuration management.
 7. Centralized logging and metrics
 8. Versioned agent definitions and infrastructure configuration
 9. Automated rebuild and recovery procedures
+
+
+### Controlled OpenAI path
+
+Birdynator does not receive unrestricted Internet connectivity.
+
+```text
+Birdynator
+    -> private proxy link
+    -> OpenAI CONNECT proxy
+    -> api.openai.com:443
+```
+
+The proxy:
+
+- allows only the approved OpenAI API destination
+- preserves end-to-end TLS
+- publishes no host port
+- is not attached to the agent-memory database network
+
+### Read-only BirdNET source path
+
+BirdNET PostgreSQL is an external authoritative datasource.
+
+```text
+Birdynator
+    -> private BirdNET link
+    -> fixed-destination BirdNET proxy
+    -> BirdNET PostgreSQL
+```
+
+The source database account is read-only. The datasource proxy exists so Birdynator can reach the approved database without receiving general LAN access.
+
+Raw BirdNET detections/weather remain source data. Generated interpretations are stored separately in Birdynator's `analysis_runs` table with source-window metadata and a digest of the exact reasoning context.
+
+See `docs/birdynator-analysis.md`.
+
+### Current Birdynator data model
+
+```text
+Authoritative source data
+  BirdNET PostgreSQL
+        |
+        v
+  analysis context
+        |
+        v
+Generated analysis --------> analysis_runs
+        |
+        +-------------------> optional future promoted memory
+
+Canonical memory ----------> memory
+Embeddings ----------------> memory_embeddings
+Model metadata ------------> embedding_models
+```
+
+This separation prevents raw domain data, model interpretations, and durable memory from becoming indistinguishable.
