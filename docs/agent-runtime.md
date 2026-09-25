@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The runtime layer is where AI Nexus begins executing isolated agents and their supporting services.
+The runtime layer is where AI Nexus executes isolated agents and their supporting services.
 
 The current design keeps the Debian host as the security boundary and runs workloads as rootless containers on top of it.
 
@@ -18,8 +18,6 @@ Verified baseline:
 - `netavark` networking
 - journald logging
 - seccomp enabled
-
-A minimal Alpine container was pulled and executed successfully as the non-root admin user.
 
 ## Runtime directory layout
 
@@ -62,6 +60,23 @@ Security properties:
 - persistent data lives in a Podman volume
 - the superuser password is stored in a local `600` file
 - the secret is injected through Podman rather than placed in the container command line
+- Birdynator uses a dedicated least-privilege login role
+- schema ownership is separated into a non-login owner role
+
+## Local embedding service
+
+Birdynator uses a local sentence-transformer embedding service.
+
+Verified properties:
+
+- `sentence-transformers/all-MiniLM-L6-v2`
+- pinned model revision
+- 384-dimensional vectors
+- CPU-only PyTorch runtime
+- internal-only Podman networking
+- no host-published port
+- read-only container filesystem with bounded temporary storage
+- model-independent canonical memory with embeddings stored separately in PostgreSQL
 
 ## Birdynator
 
@@ -85,61 +100,69 @@ Birdynator has:
 - a dedicated database
 - a separate credential
 - no PostgreSQL superuser or role-management privileges
+- access to the local embedding service
+- no host-published ports
+- internal-only Podman networking
+- rootless Quadlet/systemd lifecycle
+- bounded CPU, memory, and PID resources
+- a read-only container filesystem
 
 The Birdynator credential is provided through a Podman secret.
 
 Agents should never receive the PostgreSQL superuser credential.
 
-## Structured memory
+## Model routing
 
-The first memory table is owned by the Birdynator database role.
-
-Schema concept:
+Birdynator is configured for tiered OpenAI model routing:
 
 ```text
-memory
-├── id
-├── memory_type
-├── content
-├── metadata (JSONB)
-├── created_at
-└── updated_at
+fast/default-low-cost: gpt-5.6-luna
+normal/default:         gpt-5.6-terra
+deep/escalation:        gpt-5.6-sol
 ```
 
-Indexes exist for memory type and JSON metadata. pgvector 0.8.6 is enabled, and the embedding column has an HNSW cosine index.
+The OpenAI API credential remains a local runtime secret and is never committed to Git.
 
-Structured fields remain the authoritative memory record; vector search is an additional retrieval mechanism rather than a replacement for structured data.
+The deployed Birdynator container does not yet have OpenAI network egress. Controlled egress is a separate security step.
 
-Example memory categories may include:
+## Structured and semantic memory
 
-- preference
-- fact
-- task
-- observation
-- note
+Canonical memory remains model-independent.
 
-These categories are a starting convention, not a hard platform constraint.
+Memory records include provenance and lifecycle fields such as:
 
-## Validation
+- memory type
+- content
+- metadata
+- source type
+- source reference
+- observation time
+- confidence
+- status
+- supersession link
 
-The memory path was verified from a separate temporary container using only the agent credential.
+Embeddings are stored separately and linked to a registered embedding-model version.
 
-Validated:
+This allows the embedding model to change later without rewriting or redefining canonical memory.
 
-- service-name DNS resolution on the internal Podman network
-- PostgreSQL reachability
-- agent authentication
-- insert into the agent-owned memory table
-- read-back of the inserted record
+## Verified deployment
 
-The PostgreSQL superuser credential was not required by the agent-side validation.
+The initial Birdynator container has been built and deployed successfully.
+
+Verified:
+
+- Birdynator container starts successfully
+- Birdynator authenticates to PostgreSQL as the least-privilege `birdynator` role
+- local embedding service is reachable from the agent
+- expected 384-dimensional embedding model is available
+- no host port is published
+- agent remains on the internal-only Podman network
+- deployment is reproducible through `make birdynator-build`, `make birdynator-deploy`, and `make birdynator-verify`
 
 ## Next steps
 
-1. Add a local embedding service for Birdynator.
-2. Define embedding generation and semantic-memory policy.
-3. Populate and query Birdynator's first semantic memory vectors.
-4. Create the first real Birdynator agent container.
-5. Limit each agent to only the database, tools, files, and network capabilities it needs.
-6. Define backup and restore procedures for persistent agent state.
-7. Move important audit/telemetry off the agent host over time.
+1. Validate Birdynator `remember` and semantic `recall` end to end.
+2. Add controlled OpenAI API egress without giving the agent general Internet access.
+3. Add memory-aware reasoning using the Responses API.
+4. Add explicit model-tier selection/escalation logic.
+5. Continue extending observability, auditability, and recovery validation.
