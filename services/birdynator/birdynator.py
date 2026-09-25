@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import os
+import statistics
 import time
 from pathlib import Path
 from decimal import Decimal
@@ -297,6 +299,33 @@ def rows_as_dicts(cur):
     return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
+def percentile(values, fraction):
+    ordered = sorted(values)
+    if not ordered:
+        return None
+    if len(ordered) == 1:
+        return ordered[0]
+    pos = (len(ordered) - 1) * fraction
+    lower = int(pos)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = pos - lower
+    return ordered[lower] * (1 - weight) + ordered[upper] * weight
+
+
+def numeric_summary(values):
+    if not values:
+        return {}
+    return {
+        "avg": statistics.fmean(values),
+        "stddev": statistics.stdev(values) if len(values) > 1 else 0.0,
+        "p10": percentile(values, 0.10),
+        "p50": percentile(values, 0.50),
+        "p90": percentile(values, 0.90),
+        "min": min(values),
+        "max": max(values),
+    }
+
+
 def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
     with connect_birdnet() as conn:
         with conn.cursor() as cur:
@@ -357,6 +386,16 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
                               AND hour_local <= latest_hour - (%s * interval '1 hour')
                         ) AS baseline_presence_rate,
                         AVG(avg_confidence) FILTER (
+                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
+                              AND hour_local <= latest_hour
+                              AND present = 1
+                        ) AS recent_avg_confidence,
+                        MAX(max_confidence) FILTER (
+                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
+                              AND hour_local <= latest_hour
+                              AND present = 1
+                        ) AS recent_max_confidence,
+                        AVG(avg_confidence) FILTER (
                             WHERE hour_local > latest_hour - (%s * interval '1 day') - (%s * interval '1 hour')
                               AND hour_local <= latest_hour - (%s * interval '1 hour')
                               AND present = 1
@@ -381,12 +420,28 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
                     recent_hours,
                     baseline_days, recent_hours, recent_hours,
                     baseline_days, recent_hours, recent_hours,
+                    recent_hours,
+                    recent_hours,
                     baseline_days, recent_hours, recent_hours,
                     baseline_days, recent_hours, recent_hours,
                     top_species,
                 ),
             )
             species_comparison = rows_as_dicts(cur)
+
+            cur.execute(
+                """
+                SELECT hour_local, species, species_latin, detection_count, present,
+                       avg_confidence, max_confidence
+                FROM bird_species_hourly
+                WHERE hour_local > %s - (%s * interval '1 hour')
+                  AND hour_local <= %s
+                  AND present = 1
+                ORDER BY hour_local, detection_count DESC, species
+                """,
+                (latest_hour, recent_hours, latest_hour),
+            )
+            recent_species_by_hour = rows_as_dicts(cur)
 
     from collections import defaultdict
     from numbers import Number
@@ -413,7 +468,8 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
                 if isinstance(value, (Number, Decimal)):
                     values.append(float(value))
             if values:
-                summary[f"avg_{key}"] = sum(values) / len(values)
+                for stat, value in numeric_summary(values).items():
+                    summary[f"{stat}_{key}"] = value
         baseline_by_hour.append(summary)
 
     return {
@@ -426,7 +482,66 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
         "recent_activity_hourly": recent_activity,
         "baseline_activity_by_hour_of_day": baseline_by_hour,
         "species_comparison": species_comparison,
+        "recent_species_by_hour": recent_species_by_hour,
     }
+
+def save_analysis(dataset, args, model, result_text, source_digest):
+    window = dataset["window"]
+    source_ref = (
+        f"birdnet:bird_activity_hourly+bird_species_hourly:"
+        f"through={window['latest_hour'].isoformat()}:"
+        f"recent={window['recent_hours']}h:baseline={window['baseline_days']}d"
+    )
+    parameters = {
+        "recent_hours": args.hours,
+        "baseline_days": args.baseline_days,
+        "top_species": args.top_species,
+        "tier": args.tier,
+    }
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO analysis_runs
+                    (analysis_type, model, source_type, source_ref, source_latest_hour,
+                     recent_hours, baseline_days, source_digest, parameters, result_text)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                RETURNING id
+                """,
+                (
+                    "birdnet_recent_vs_baseline",
+                    model,
+                    "birdnet_postgres",
+                    source_ref,
+                    window["latest_hour"],
+                    args.hours,
+                    args.baseline_days,
+                    source_digest,
+                    json.dumps(parameters),
+                    result_text,
+                ),
+            )
+            analysis_id = cur.fetchone()[0]
+        conn.commit()
+    return analysis_id
+
+
+def analysis_history(args):
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, analysis_type, model, source_ref, recent_hours, baseline_days, created_at
+                FROM analysis_runs
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (args.limit,),
+            )
+            rows = rows_as_dicts(cur)
+    print(json.dumps(rows, default=str, indent=2))
+
 
 def analyze_birdnet(args):
     dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species)
@@ -439,14 +554,18 @@ def analyze_birdnet(args):
         return str(value)
 
     context = json.dumps(dataset, default=encode, separators=(",", ":"))
+    source_digest = hashlib.sha256(context.encode()).hexdigest()
+    model = model_for_tier(args.tier)
 
     payload = json.dumps({
-        "model": model_for_tier(args.tier),
+        "model": model,
         "store": False,
         "instructions": (
             "You are Birdynator, a careful bird-activity analyst. "
             "Analyze only the supplied BirdNET source data. Treat detections and weather as observations, "
             "not conclusions. Separate observations from hypotheses. Do not claim causation from correlation. "
+            "Use the supplied historical variance and percentiles to distinguish ordinary variation from stronger departures. "
+            "Use recent species-by-hour and confidence fields when assessing peaks and isolated detections. "
             "Call out data limitations, sparse hours, confidence limitations, and anything that needs more history."
         ),
         "input": (
@@ -469,7 +588,10 @@ def analyze_birdnet(args):
     with openai_opener().open(req, timeout=90) as response:
         data = json.loads(response.read())
 
-    print(openai_text(data))
+    result_text = openai_text(data)
+    analysis_id = save_analysis(dataset, args, model, result_text, source_digest)
+    print(result_text)
+    print(f"\n[analysis saved: id={analysis_id}; source_digest={source_digest[:12]}]")
 
 def serve():
     health()
@@ -510,6 +632,9 @@ def main():
     analyze_parser.add_argument("--top-species", type=int, default=25)
     analyze_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
 
+    history_parser = sub.add_parser("analysis-history")
+    history_parser.add_argument("--limit", type=int, default=10)
+
     args = parser.parse_args()
 
     if args.command == "health":
@@ -528,6 +653,8 @@ def main():
         birdnet_health()
     elif args.command == "analyze-birdnet":
         analyze_birdnet(args)
+    elif args.command == "analysis-history":
+        analysis_history(args)
 
 
 if __name__ == "__main__":
