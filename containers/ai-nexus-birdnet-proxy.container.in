@@ -1,0 +1,21 @@
+[Unit]
+Description=AI Nexus BirdNET fixed-destination database proxy
+After=network-online.target
+
+[Container]
+Image=localhost/ai-nexus-birdnet-proxy:1
+ContainerName=ai-nexus-birdnet-proxy
+Network=ai-nexus-birdnet-link
+Network=ai-nexus-birdnet-egress
+Environment=PROXY_LISTEN_HOST=0.0.0.0
+Environment=PROXY_LISTEN_PORT=5432
+Environment=BIRDNET_SOURCE_HOST=@@BIRDNET_SOURCE_HOST@@
+Environment=BIRDNET_SOURCE_PORT=5432
+PodmanArgs=--memory=128m --cpus=0.25 --pids-limit=64 --read-only --tmpfs=/tmp:rw,noexec,nosuid,size=16m
+
+[Service]
+Restart=always
+TimeoutStartSec=30
+
+[Install]
+WantedBy=default.target
