@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: plan bootstrap migrate verify backup restore-test embedding-build embedding-deploy embedding-verify birdynator-build birdynator-deploy birdynator-verify
+.PHONY: plan bootstrap migrate verify backup restore-test embedding-build embedding-deploy embedding-verify openai-proxy-build openai-proxy-deploy openai-proxy-verify birdynator-build birdynator-deploy birdynator-verify
 
 plan:
 	@./scripts/plan.sh
@@ -28,6 +28,15 @@ embedding-deploy:
 
 embedding-verify:
 	@./scripts/verify-embedding.sh
+
+openai-proxy-build:
+	@bash ./scripts/build-openai-proxy.sh
+
+openai-proxy-deploy:
+	@bash ./scripts/deploy-openai-proxy.sh
+
+openai-proxy-verify:
+	@bash ./scripts/verify-openai-proxy.sh
 
 birdynator-build:
 	@bash ./scripts/build-birdynator.sh
