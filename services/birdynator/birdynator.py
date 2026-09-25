@@ -443,9 +443,6 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
             )
             recent_species_by_hour = rows_as_dicts(cur)
 
-    from collections import defaultdict
-    from numbers import Number
-
     grouped = defaultdict(list)
     for row in baseline_activity:
         hour = row.get("hour_local")
