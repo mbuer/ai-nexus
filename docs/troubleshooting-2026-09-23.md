@@ -9,13 +9,11 @@ Two separate management-path problems were investigated:
 
 The final working design uses WireGuard for management with separate Home and Away peers.
 
+Exact live addresses have been removed from this public troubleshooting record.
+
 ## Direct-LAN path
 
-The Windows laptop used:
-
-```text
-10.50.0.0/24 via 192.168.1.25
-```
+A Windows client-side static route to `AI_NET` through the OPNsense LAN address was tested.
 
 SSH connected but later reset.
 
@@ -40,11 +38,11 @@ A Home client profile was created by reusing the same WireGuard peer identity an
 Home routing was:
 
 ```text
-Endpoint = 192.168.1.25:51820
-AllowedIPs = 10.50.0.0/24
+Endpoint = local OPNsense LAN address
+AllowedIPs = AI_NET
 ```
 
-This avoided the Spectrum router's public-endpoint hairpin behavior and initially worked.
+This avoided public-endpoint hairpin behavior and initially worked.
 
 However, it later showed a repeating failure pattern:
 
@@ -60,27 +58,20 @@ SSH works
 A new Home peer was created with:
 
 ```text
-Address = 10.10.10.4/32
+Address = dedicated WG_HOME_PEER
 Keypair = unique Home keypair
-Endpoint = 192.168.1.25:51820
-AllowedIPs = 10.50.0.0/24
+Endpoint = local OPNsense LAN address
+AllowedIPs = AI_NET
 PersistentKeepalive = 25
 ```
 
-The original Away peer remained:
-
-```text
-Address = 10.10.10.3/32
-Keypair = original Away keypair
-```
-
-The new Home peer was added separately in OPNsense with the matching Windows public key and `10.10.10.4/32` as its Allowed IP.
+The Away profile retained its own dedicated peer identity and keypair.
 
 ## Validation
 
 After reconnecting with the dedicated Home peer:
 
-- AI Nexus showed the SSH source as `10.10.10.4`
+- AI Nexus showed the dedicated Home peer as the SSH source
 - SSH remained stable during active use
 - WireGuard handshakes refreshed during active traffic
 - normal home-lab traffic remained local
@@ -91,12 +82,6 @@ The evidence strongly suggests that reusing one WireGuard peer identity across t
 ## GitHub side issue
 
 `git pull` initially appeared to be another network failure.
-
-The Git remote was:
-
-```text
-git@github.com:mbuer/ai-nexus.git
-```
 
 The AI egress policy allowed HTTP/HTTPS but not generic outbound TCP/22.
 
@@ -109,32 +94,32 @@ Host github.com
     User git
 ```
 
-After that, `ssh -T git@github.com` and `git pull` worked without opening outbound TCP/22.
+After that, GitHub SSH and `git pull` worked without opening outbound TCP/22.
 
 ## Final management model
 
 ### Home
 
 ```text
-Windows Home peer 10.10.10.4
+Windows Home peer
     |
-WireGuard to 192.168.1.25:51820
+WireGuard to local OPNsense endpoint
     |
 OPNsense
     |
-AI Nexus 10.50.0.10
+AI_HOST
 ```
 
 ### Away
 
 ```text
-Windows Away peer 10.10.10.3
+Windows Away peer
     |
 WireGuard to public endpoint
     |
 OPNsense
-    +-- 192.168.1.0/24
-    +-- 10.50.0.0/24
+    +-- HOME_LAN
+    +-- AI_NET
 ```
 
 ## Lessons
@@ -145,3 +130,4 @@ OPNsense
 4. Keep troubleshooting-only firewall changes out of the final architecture.
 5. Controlled egress can expose legitimate application assumptions, such as Git expecting outbound SSH/22.
 6. Prefer narrow exceptions such as GitHub SSH over 443 over broad firewall openings.
+7. Public documentation can preserve the architecture without publishing the live environment's exact addressing.
