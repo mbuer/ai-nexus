@@ -169,6 +169,12 @@ Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-
 - separation of agent runtime, tools, data, and secrets
 - human approval for sensitive or destructive actions
 
+## Restore validation
+
+The logical PostgreSQL backup path has been tested end to end. A backup was restored into a temporary database, the existing Birdynator memory record was recovered, and the model-aware `memory_embeddings` table was present.
+
+The next backup step is to keep the logical dump outside the AI Nexus VM. The preferred design is an off-host backup target that the agent runtime cannot freely modify.
+
 ## Next steps
 
 1. Continue observing Home WireGuard stability and capture the next failure without restarting the tunnel.

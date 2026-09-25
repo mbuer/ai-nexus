@@ -60,10 +60,27 @@ Authoritative BirdNET/weather/source data should remain domain data, not self-au
 
 `make backup` creates a logical PostgreSQL dump plus global role definitions with restrictive file permissions.
 
-The default backup location is still on the VM. Configure `config/runtime.local.env` to point `AI_NEXUS_BACKUP_DIR` at an off-VM mounted destination for stronger recovery.
+The default backup location is still on the VM and should be treated as a staging location, not the final recovery boundary.
+
+The preferred design is to copy or pull logical backups to an off-host target outside the AI Nexus trust boundary. Avoid exposing a broad writable backup filesystem directly to the agent VM when a narrower transfer path can be used.
 
 `make restore-test` restores the latest dump into a temporary database, validates it, and deletes the test database.
 
 ## Secrets
 
 Local secret files remain under the runtime secrets directory and are never committed. Podman secrets are recreated from those local files when needed.
+
+
+## Verified recovery milestone
+
+The first restore test completed successfully.
+
+Validated:
+
+- the logical dump restored into a temporary database
+- the existing Birdynator memory record was recovered
+- the `memory_embeddings` table was present
+- pgvector restored correctly when recovery ran under the PostgreSQL administrative role
+- the temporary restore-test database was removed afterward
+
+This confirms that the current logical backup is not merely being created; it is usable for recovery.

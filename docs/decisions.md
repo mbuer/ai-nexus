@@ -299,3 +299,19 @@ baseline-agent-memory
 ```
 
 This snapshot marks the first complete agent persistence milestone: rootless Podman runtime, isolated service network, PostgreSQL-backed per-agent memory, and verified Birdynator database identity.
+
+
+## 2026-09-24 — Verified logical database recovery
+
+The PostgreSQL backup workflow was tested by restoring the latest Birdynator dump into a temporary database.
+
+Validation confirmed:
+
+- the existing memory record was recovered
+- the model-aware `memory_embeddings` table was present
+- pgvector objects restored successfully under the PostgreSQL administrative recovery role
+- the temporary recovery database was removed after validation
+
+Decision: snapshots remain useful recovery checkpoints, but Birdynator also requires logical PostgreSQL backups with tested restore procedures.
+
+The long-term backup target should live outside the AI Nexus VM and outside the agent runtime's normal write boundary.

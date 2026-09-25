@@ -222,6 +222,20 @@ Expected:
 
 No effect on the home LAN or OPNsense.
 
+### Backup trust boundary
+
+Logical backups should ultimately leave the AI Nexus VM.
+
+Preferred properties:
+
+- backup storage is outside the agent VM
+- the agent runtime cannot freely alter historical backups
+- transfer access is narrower than general host access
+- restore procedures are tested, not assumed
+- VM snapshots and logical database backups are complementary rather than interchangeable
+
+The current logical backup mechanism is verified; off-host placement is the next recovery hardening step.
+
 ## Recovery checkpoints
 
 A baseline snapshot exists from before network segmentation.
