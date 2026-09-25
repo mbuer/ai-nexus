@@ -1,0 +1,20 @@
+# Local environment-specific configuration
+config/network.local.yaml
+config/*.local.yaml
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+secrets/
+credentials/
+
+# Local/editor artifacts
+.vscode/
+.idea/
+*.swp
+.DS_Store
