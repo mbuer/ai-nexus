@@ -102,3 +102,33 @@ Future work should move toward:
 - recovery automation
 
 When adding automation, make it understandable and reversible.
+
+
+## Agent capability pattern
+
+Do not solve a new agent requirement by attaching the agent to a broad network.
+
+Preferred pattern:
+
+- keep the agent on internal Podman networks
+- expose a narrowly scoped proxy or service bridge for each external capability
+- give datasource credentials the minimum required database privileges
+- keep authoritative source data separate from generated analysis and canonical memory
+- persist provenance when model output is retained
+
+Current examples:
+
+- OpenAI API through a destination allowlist CONNECT proxy
+- BirdNET PostgreSQL through a fixed-destination datasource proxy and read-only database role
+
+## Birdynator development
+
+For normal Birdynator code-only changes, prefer:
+
+```bash
+make birdynator-update
+```
+
+Use full deploy workflows when proxy/network/runtime infrastructure changes.
+
+Birdynator analyses belong in `analysis_runs`; do not automatically promote model-generated analysis into canonical `memory` without an explicit design decision.
