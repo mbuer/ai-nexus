@@ -1,0 +1,23 @@
+[Unit]
+Description=AI Nexus local embedding service
+After=network-online.target
+
+[Container]
+Image=localhost/ai-nexus-embedding:1
+ContainerName=ai-nexus-embedding
+Network=ai-nexus-internal
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+Environment=EMBEDDING_MODEL_REVISION=1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+Environment=EMBEDDING_MODEL_PATH=/opt/model
+Environment=EMBEDDING_DIMENSIONS=384
+Environment=EMBEDDING_MAX_BATCH_SIZE=32
+PodmanArgs=--memory=2g --cpus=1.0 --pids-limit=256 --read-only --tmpfs=/tmp:rw,noexec,nosuid,size=128m
+
+[Service]
+Restart=always
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target
