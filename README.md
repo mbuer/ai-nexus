@@ -43,36 +43,51 @@ See [Birdynator analysis](docs/birdynator-analysis.md).
 ## Security model
 
 ```text
-                    Internet
-                       |
-                 Home router
-                       |
-                    HOME_LAN
-                       |
-                    OPNsense
-        gateway / firewall / NAT / DNS
-          /                       \
-   WireGuard                    AI segment
-   management                      |
-                                  v
-                           AI Nexus host
-                         Debian + nftables
-                                  |
-                           rootless Podman
-                                  |
-                           +-- Birdynator --+
-                           |       |        |
-                           |       |        |
-                    PostgreSQL  OpenAI   BirdNET
-                               proxy      proxy
-                                 |          |
-                                 v          v
-                         api.openai.com  BirdNET PostgreSQL
+                                  Internet
+                                     |
+                               Home router
+                                     |
+                                  HOME_LAN
+                                     |
+                                  OPNsense
+                  gateway / firewall / NAT / DNS / logging
+                         /            |             \
+                        /             |              \
+             WireGuard mgmt       AI segment       HOME_LAN services
+                                      |                 |
+                                      v                 v
+                               AI Nexus host         Infra VM
+                             Debian + nftables          |
+                                      |                 |
+                               rootless Podman          |
+                                      |                 |
+                              +--- Birdynator ---+      |
+                              |        |         |      |
+                              |        |         |      |
+                       PostgreSQL   OpenAI    BirdNET   |
+                                  CONNECT     proxy     |
+                                   proxy        |       |
+                                      |         +-------+
+                                      |
+                                      v
+                               api.openai.com
+                                      ^
+                                      |
+                               OPNsense / NAT
+                                      |
+                                   Internet
 ```
+
+The important point is that **all routed traffic from the AI segment leaves through OPNsense**:
+
+- OpenAI traffic: Birdynator -> OpenAI CONNECT proxy -> AI Nexus host -> OPNsense -> Internet -> `api.openai.com:443`.
+- BirdNET datasource traffic: Birdynator -> BirdNET fixed-destination proxy -> AI Nexus host -> OPNsense -> HOME_LAN -> Infra VM/PostgreSQL.
+- Management traffic: management client -> WireGuard on OPNsense -> AI Nexus.
+- Birdynator's own PostgreSQL and embedding service remain local to AI Nexus on internal Podman networks and do not traverse OPNsense.
 
 The security model is layered:
 
-- **OPNsense** is the Layer-3 enforcement point for the AI segment. It provides the AI gateway, firewall policy, NAT, DNS, WireGuard management ingress, upstream egress control/logging, and the narrow routed path to the BirdNET datasource.
+- **OPNsense** is the Layer-3 enforcement point for the AI segment. It provides the AI gateway, firewall policy, NAT, DNS, WireGuard management ingress, routed access to approved LAN services, and upstream egress control/logging.
 - **Debian nftables** provides host-level defense in depth with default-drop inbound/forward policy.
 - **Rootless Podman networks and dedicated proxies** form the workload-capability boundary. Birdynator does not receive broad LAN or Internet access merely because one approved service needs it.
 - **PostgreSQL roles and separate databases** form the data-permission boundary.
@@ -81,8 +96,8 @@ Important properties:
 
 - Birdynator has no host-published port.
 - The agent does not receive direct general Internet access.
-- OpenAI egress is restricted to `api.openai.com:443` through a dedicated proxy.
-- BirdNET access uses a dedicated read-only database role.
+- OpenAI egress is restricted to `api.openai.com:443` through a dedicated proxy and still traverses OPNsense.
+- BirdNET access uses a dedicated read-only database role and traverses OPNsense to the approved Infra-hosted datasource.
 - The datasource proxy is isolated from the agent-memory database network.
 - Raw BirdNET rows remain authoritative source data; they are not copied into agent memory.
 - Generated analyses are stored separately from canonical memory.
