@@ -9,6 +9,7 @@ ensure_not_root
 bash "$REPO_ROOT/scripts/build-birdynator.sh"
 bash "$REPO_ROOT/scripts/migrate.sh"
 bash "$REPO_ROOT/scripts/deploy-openai-proxy.sh"
+bash "$REPO_ROOT/scripts/deploy-birdnet-proxy.sh"
 
 podman network inspect ai-nexus-internal >/dev/null 2>&1 || {
     echo "ERROR: ai-nexus-internal does not exist." >&2
@@ -17,6 +18,11 @@ podman network inspect ai-nexus-internal >/dev/null 2>&1 || {
 
 podman network inspect ai-nexus-internal | grep -q '"internal": true' || {
     echo "ERROR: ai-nexus-internal is not internal." >&2
+    exit 1
+}
+
+podman secret inspect birdnet-db-password >/dev/null 2>&1 || {
+    echo "ERROR: Podman secret birdnet-db-password is missing." >&2
     exit 1
 }
 
