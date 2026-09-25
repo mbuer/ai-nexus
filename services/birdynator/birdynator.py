@@ -21,6 +21,11 @@ OPENAI_PROXY = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
 MODEL_FAST = os.getenv("BIRDYNATOR_MODEL_FAST", "gpt-5.6-luna")
 MODEL_DEFAULT = os.getenv("BIRDYNATOR_MODEL_DEFAULT", "gpt-5.6-terra")
 MODEL_DEEP = os.getenv("BIRDYNATOR_MODEL_DEEP", "gpt-5.6-sol")
+BIRDNET_DB_HOST = os.getenv("BIRDNET_DB_HOST", "ai-nexus-birdnet-proxy")
+BIRDNET_DB_PORT = int(os.getenv("BIRDNET_DB_PORT", "5432"))
+BIRDNET_DB_NAME = os.getenv("BIRDNET_DB_NAME", "birdnet")
+BIRDNET_DB_USER = os.getenv("BIRDNET_DB_USER", "birdynator_reader")
+BIRDNET_DB_PASSWORD_FILE = os.getenv("BIRDNET_DB_PASSWORD_FILE", "/run/secrets/birdnet-db-password")
 
 
 def db_password():
@@ -34,6 +39,22 @@ def connect():
         user=DB_USER,
         password=db_password(),
         connect_timeout=5,
+    )
+
+
+def birdnet_password():
+    return Path(BIRDNET_DB_PASSWORD_FILE).read_text().strip()
+
+
+def connect_birdnet():
+    return psycopg.connect(
+        host=BIRDNET_DB_HOST,
+        port=BIRDNET_DB_PORT,
+        dbname=BIRDNET_DB_NAME,
+        user=BIRDNET_DB_USER,
+        password=birdnet_password(),
+        connect_timeout=5,
+        options="-c default_transaction_read_only=on",
     )
 
 
