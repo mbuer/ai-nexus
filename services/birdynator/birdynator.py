@@ -274,6 +274,86 @@ def api_health():
         raise RuntimeError(f"configured OpenAI models unavailable: {missing}")
     print(json.dumps({"status": "ok", "models": sorted(needed)}))
 
+
+def birdnet_health():
+    with connect_birdnet() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_user, current_database(), current_setting('transaction_read_only')")
+            user, database, read_only = cur.fetchone()
+            cur.execute("SELECT COUNT(*) FROM detections")
+            detections = cur.fetchone()[0]
+    print(json.dumps({
+        "status": "ok",
+        "database": database,
+        "database_user": user,
+        "read_only": read_only,
+        "detections": detections,
+    }, sort_keys=True))
+
+
+def rows_as_dicts(cur):
+    columns = [desc.name for desc in cur.description]
+    return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+
+def birdnet_recent(activity_hours=24, species_rows=120):
+    with connect_birdnet() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM bird_activity_hourly ORDER BY hour_local DESC LIMIT %s",
+                (activity_hours,),
+            )
+            activity = rows_as_dicts(cur)
+
+            cur.execute(
+                "SELECT * FROM bird_species_hourly WHERE present = 1 ORDER BY hour_local DESC, detection_count DESC LIMIT %s",
+                (species_rows,),
+            )
+            species = rows_as_dicts(cur)
+
+    return {"activity_hourly": activity, "species_hourly_present": species}
+
+
+def analyze_birdnet(args):
+    dataset = birdnet_recent(args.hours, args.species_rows)
+
+    def encode(value):
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return value
+
+    context = json.dumps(dataset, default=encode, separators=(",", ":"))
+
+    payload = json.dumps({
+        "model": model_for_tier(args.tier),
+        "store": False,
+        "instructions": (
+            "You are Birdynator, a careful bird-activity analyst. "
+            "Analyze only the supplied BirdNET source data. Treat detections and weather as observations, "
+            "not conclusions. Separate observations from hypotheses. Do not claim causation from correlation. "
+            "Call out data limitations, sparse hours, confidence limitations, and anything that needs more history."
+        ),
+        "input": (
+            "Analyze the most recent BirdNET activity represented by these source rows. "
+            "Focus on notable species activity, time-of-day patterns, weather context, and anything unusual. "
+            f"Source data JSON:\n{context}"
+        ),
+    }).encode()
+
+    req = Request(
+        OPENAI_API_URL,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {openai_key()}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    with openai_opener().open(req, timeout=90) as response:
+        data = json.loads(response.read())
+
+    print(openai_text(data))
+
 def serve():
     health()
     while True:
@@ -305,6 +385,12 @@ def main():
     ask_parser.add_argument("--limit", type=int, default=5)
 
     sub.add_parser("api-health")
+    sub.add_parser("birdnet-health")
+
+    analyze_parser = sub.add_parser("analyze-birdnet")
+    analyze_parser.add_argument("--hours", type=int, default=24)
+    analyze_parser.add_argument("--species-rows", type=int, default=120)
+    analyze_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
 
     args = parser.parse_args()
 
@@ -320,6 +406,10 @@ def main():
         ask(args)
     elif args.command == "api-health":
         api_health()
+    elif args.command == "birdnet-health":
+        birdnet_health()
+    elif args.command == "analyze-birdnet":
+        analyze_birdnet(args)
 
 
 if __name__ == "__main__":
