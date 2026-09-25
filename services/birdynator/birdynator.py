@@ -4,6 +4,7 @@ import json
 import os
 import time
 from pathlib import Path
+from decimal import Decimal
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
@@ -388,7 +389,6 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
             species_comparison = rows_as_dicts(cur)
 
     from collections import defaultdict
-    from decimal import Decimal
     from numbers import Number
 
     grouped = defaultdict(list)
