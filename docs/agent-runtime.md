@@ -147,7 +147,7 @@ This allows the embedding model to change later without rewriting or redefining 
 
 ## Verified deployment
 
-The initial Birdynator container has been built and deployed successfully.
+The Birdynator runtime has been built and deployed successfully.
 
 Verified:
 
@@ -159,10 +159,28 @@ Verified:
 - agent remains on the internal-only Podman network
 - deployment is reproducible through `make birdynator-build`, `make birdynator-deploy`, and `make birdynator-verify`
 
+Semantic memory is also validated end to end:
+
+- `remember` creates a canonical memory record
+- the local embedding service generates the vector
+- pgvector stores the embedding separately from canonical memory
+- `recall` retrieves semantically relevant memory
+
+Controlled OpenAI reasoning is now validated:
+
+- Birdynator has no direct Internet egress
+- OpenAI access goes through the dedicated allowlist proxy
+- the proxy is restricted to `api.openai.com:443`
+- the proxy is not attached to the PostgreSQL service network
+- the OpenAI API secret is mounted only into Birdynator
+- `ask` retrieves relevant local memories before calling the Responses API
+- the default Terra tier and explicit Sol deep tier both returned the correct answer from retrieved memory
+- Responses API requests use `store: false`
+
 ## Next steps
 
-1. Validate Birdynator `remember` and semantic `recall` end to end.
-2. Add controlled OpenAI API egress without giving the agent general Internet access.
-3. Add memory-aware reasoning using the Responses API.
-4. Add explicit model-tier selection/escalation logic.
-5. Continue extending observability, auditability, and recovery validation.
+1. Test multi-observation reasoning and hypothesis formation.
+2. Add explicit model-tier selection/escalation logic beyond manual `--tier`.
+3. Add structured provenance to generated analytical conclusions.
+4. Add observability for agent requests, model tier, latency, and token/cost usage without logging secrets or full private prompts by default.
+5. Continue recovery validation after agent memory and reasoning state expand.
