@@ -110,7 +110,7 @@ Endpoint = public WireGuard endpoint
 AllowedIPs = HOME_LAN, AI_NET
 ```
 
-The Home session was verified as originating from the dedicated Home peer and remained stable during active use.
+The Home session was verified as originating from the dedicated Home peer. Separate peer identities remain the correct architecture, but later testing showed that intermittent SSH resets can still occur, so peer reuse was not the sole cause.
 
 ## 2026-09-24 — Sanitize public network documentation
 
@@ -148,3 +148,47 @@ IPv6 is not enabled on the AI segment.
 A recovery snapshot was taken after the isolated networking and management path were established.
 
 Snapshots are recovery checkpoints, not a substitute for configuration management.
+
+
+## 2026-09-24 — Debian security baseline
+
+The Debian host now provides defense in depth in addition to OPNsense.
+
+SSH:
+
+- direct root SSH disabled with `PermitRootLogin no`
+- public-key authentication enabled
+- password authentication intentionally retained for the non-root admin account
+
+Host firewall:
+
+- nftables enabled persistently
+- inbound and forwarding default to drop
+- loopback and established/related traffic allowed
+- SSH accepted only from the WireGuard management network
+- ICMP and ICMPv6 retained for diagnostics
+- outbound traffic accepted locally; OPNsense remains the primary egress policy boundary
+
+Updates and logging:
+
+- unattended upgrades enabled for the current Debian release and Debian security origins
+- package lists and unattended upgrades run daily
+- automatic reboot remains disabled
+- systemd journal storage is persistent
+- auditd and audispd plugins enabled
+- targeted audit watches cover SSH configuration, sudoers, nftables configuration, local identity files, and systemd unit configuration
+- an audit test confirmed configuration changes are recorded with user attribution
+
+## 2026-09-24 — Security baseline snapshot
+
+Snapshot:
+
+```text
+baseline-security-audit
+```
+
+Description:
+
+```text
+Hardened Debian baseline with root SSH disabled, nftables host firewall, unattended upgrades, persistent journald, and targeted auditd rules verified.
+```

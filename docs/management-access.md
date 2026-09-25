@@ -87,7 +87,7 @@ That setup was unstable:
 - new SSH attempts would time out
 - restarting the tunnel restored access temporarily
 
-A dedicated Home peer removed that ambiguity and remained stable during active use.
+A dedicated Home peer removes identity ambiguity and remains the intended design. Later testing showed that intermittent SSH resets can still occur, so peer reuse was not the sole cause and the transport issue remains under investigation.
 
 ## GitHub access from AI Nexus
 
@@ -134,12 +134,14 @@ git fetch
 curl -4 https://deb.debian.org/ -o /dev/null
 ```
 
-Expected:
+Expected when healthy:
 
 - SSH remains connected
 - latest handshake refreshes during active traffic
 - transfer counters increase
 - session source is the dedicated Home peer
+
+If SSH resets or times out, do not immediately restart the tunnel. Preserve the failing state long enough to compare WireGuard handshake age, transfer counters, and the OPNsense UDP/51820 capture.
 
 ## Quick troubleshooting
 

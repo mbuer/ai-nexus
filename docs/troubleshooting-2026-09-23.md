@@ -7,7 +7,7 @@ Two separate management-path problems were investigated:
 1. direct LAN routing to the isolated AI subnet
 2. an initially unstable Home WireGuard profile
 
-The final working design uses WireGuard for management with separate Home and Away peers.
+The intended management design uses WireGuard with separate Home and Away peers. This removed peer-identity ambiguity, but intermittent SSH resets still occur and remain under investigation.
 
 Exact live addresses have been removed from this public troubleshooting record.
 
@@ -72,12 +72,13 @@ The Away profile retained its own dedicated peer identity and keypair.
 After reconnecting with the dedicated Home peer:
 
 - AI Nexus showed the dedicated Home peer as the SSH source
-- SSH remained stable during active use
 - WireGuard handshakes refreshed during active traffic
 - normal home-lab traffic remained local
 - no Windows static route was required
 
-The evidence strongly suggests that reusing one WireGuard peer identity across the two profiles was the source of the Home tunnel instability.
+Later testing reproduced intermittent SSH resets even with the dedicated peer. Separate peer identities remain the correct design, but the evidence no longer supports peer reuse as the sole root cause.
+
+The current diagnostic approach is to preserve the failing state and capture outer WireGuard UDP/51820 traffic on the OPNsense LAN interface before restarting the tunnel.
 
 ## GitHub side issue
 
@@ -124,7 +125,7 @@ OPNsense
 
 ## Lessons
 
-1. Do not reuse one WireGuard peer identity for logically separate client profiles when a dedicated peer is easy to create.
+1. Use separate WireGuard peer identities for logically separate client profiles; this removes ambiguity even though it did not fully resolve the intermittent reset.
 2. A technically possible routing workaround may still be a poor operational design.
 3. Packet captures prevent random firewall and SSH changes from becoming permanent configuration.
 4. Keep troubleshooting-only firewall changes out of the final architecture.

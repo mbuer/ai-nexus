@@ -84,7 +84,20 @@ This centralizes:
 - traffic logging
 - management ingress
 
-### 4. WireGuard management boundary
+### 4. Debian host boundary
+
+AI Nexus now has its own minimal nftables policy in addition to OPNsense:
+
+- default-drop inbound and forwarding
+- loopback allowed
+- established/related traffic allowed
+- SSH accepted only from the WireGuard management network
+- ICMP/ICMPv6 allowed for diagnostics
+- outbound traffic accepted locally and still governed upstream by OPNsense
+
+The host also uses unattended upgrades, persistent journald, and targeted auditd rules.
+
+### 5. WireGuard management boundary
 
 AI Nexus is not managed directly from the normal LAN.
 
@@ -156,7 +169,7 @@ No effect on the home LAN or OPNsense.
 
 A baseline snapshot exists from before network segmentation.
 
-A second snapshot was taken after network isolation, WireGuard management, DNS persistence, and troubleshooting cleanup were completed.
+Additional recovery checkpoints were taken after SSH/firewall hardening and after the security/audit baseline was completed. The current security milestone snapshot is `baseline-security-audit`.
 
 Snapshots are recovery aids, not configuration management.
 
@@ -164,7 +177,7 @@ Snapshots are recovery aids, not configuration management.
 
 1. Proxmox VM boundary
 2. OPNsense network enforcement
-3. Hardened Debian host
+3. Hardened Debian host — baseline complete
 4. Containerized workloads
 5. Per-agent identities and permissions
 6. Secrets management

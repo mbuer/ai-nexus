@@ -24,7 +24,9 @@ The base VM, isolated AI network, controlled egress, and WireGuard management pa
 Known recovery snapshots:
 
 - `baseline-pre-network-segmentation`
-- post-network-cleanup snapshot taken after the isolated network and WireGuard management path were stabilized
+- post-network-cleanup snapshot taken after the isolated network and WireGuard management path were established
+- `baseline-ssh-firewall-hardening`
+- `baseline-security-audit`
 
 ## Network model
 
@@ -57,10 +59,25 @@ Validated:
 - outbound NAT
 - firewall logging
 - remote SSH over WireGuard
-- stable home SSH over a dedicated WireGuard peer
+- home SSH over a dedicated WireGuard peer, with intermittent resets still under investigation
 - normal home-lab access remains local while the Home profile is active
 - client-side static-route workaround removed
 - GitHub SSH works over TCP/443 without opening generic outbound TCP/22
+
+## Host security baseline
+
+Current Debian hardening includes:
+
+- direct root SSH disabled
+- SSH key and password authentication retained for the non-root admin account
+- persistent nftables host firewall with default-drop inbound/forward policy
+- SSH accepted only from the WireGuard management network
+- outbound host policy left open; OPNsense remains the primary egress enforcement point
+- automatic Debian security/stable upgrades enabled without automatic reboot
+- persistent systemd journal storage
+- auditd enabled with targeted watches for SSH, sudoers, nftables, identity files, and systemd unit configuration
+
+See `docs/security-baseline.md`.
 
 ## Management access
 
@@ -119,13 +136,12 @@ Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-
 
 ## Next steps
 
-1. Continue observing Home WireGuard stability under normal use.
-2. Harden the Debian host.
-3. Review and tighten OPNsense egress rules.
-4. Add reproducible configuration management.
-5. Add container runtime.
-6. Add centralized logging and metrics.
-7. Define secrets handling.
-8. Deploy the first limited-permission agent.
+1. Continue observing Home WireGuard stability and capture the next failure without restarting the tunnel.
+2. Add reproducible configuration management.
+3. Add container runtime.
+4. Define per-agent permissions and secrets handling.
+5. Add centralized off-host logging and metrics.
+6. Review and tighten OPNsense egress rules as agent requirements become known.
+7. Deploy the first limited-permission agent.
 
 See `docs/` for architecture, networking, management access, troubleshooting history, and decision records.
