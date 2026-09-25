@@ -43,3 +43,22 @@ echo "✓ Birdynator DB role verified"
 echo "✓ local embedding service reachable"
 echo "✓ no host port published"
 echo "✓ agent remains on internal-only network"
+
+
+api_health="$(podman exec agent-birdynator python /app/birdynator.py api-health)"
+[[ "$api_health" == *'"status": "ok"'* ]] || {
+    echo "ERROR: Birdynator OpenAI API health check failed: $api_health" >&2
+    exit 1
+}
+
+if podman exec agent-birdynator python - <<'PY' >/dev/null 2>&1
+import socket
+socket.create_connection(("1.1.1.1", 443), timeout=3).close()
+PY
+then
+    echo "ERROR: Birdynator has direct Internet egress; expected proxy-only access." >&2
+    exit 1
+fi
+
+echo "✓ OpenAI API reachable through controlled proxy"
+echo "✓ direct Internet egress blocked from Birdynator"
