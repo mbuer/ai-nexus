@@ -214,3 +214,30 @@ Troubleshooting settings tested during the abandoned direct-LAN path are not par
 - direct LAN laptop -> AI Nexus SSH rule
 - temporary AI -> OPNsense ICMP rule
 - Windows persistent route
+
+
+## Application-specific egress
+
+Host-level outbound policy remains simple, but agent capabilities are narrowed at the container/service layer.
+
+### OpenAI
+
+Birdynator does not receive direct general Internet access.
+
+```text
+Birdynator -> OpenAI CONNECT proxy -> api.openai.com:443
+```
+
+The proxy is the only component on the Birdynator path with Internet egress.
+
+### BirdNET datasource
+
+Birdynator does not receive general LAN access simply to read BirdNET.
+
+```text
+Birdynator -> BirdNET fixed-destination proxy -> BIRDNET_DB_HOST:5432
+```
+
+The upstream OPNsense policy permits only the intended AI-host-to-datasource PostgreSQL path, and PostgreSQL separately enforces the dedicated read-only login.
+
+Live addresses remain in ignored local configuration and are not documented here.
