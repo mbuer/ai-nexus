@@ -19,7 +19,7 @@ owner="$(podman exec ai-nexus-postgres psql -U postgres -d postgres -Atqc "SELEC
 [[ "$owner" == "birdynator_owner" ]] && ok "database owned by non-login owner role" || bad "unexpected database owner: $owner"
 
 attrs="$(podman exec ai-nexus-postgres psql -U postgres -d postgres -Atqc "SELECT rolsuper||':'||rolcreaterole||':'||rolcreatedb||':'||rolcanlogin FROM pg_roles WHERE rolname='birdynator';")"
-[[ "$attrs" == "f:f:f:t" ]] && ok "Birdynator runtime role has no admin attributes" || bad "unexpected Birdynator role attributes: $attrs"
+[[ "$attrs" == "false:false:false:true" || "$attrs" == "f:f:f:t" ]] && ok "Birdynator runtime role has no admin attributes" || bad "unexpected Birdynator role attributes: $attrs"
 
 mem_owner="$(podman exec ai-nexus-postgres psql -U postgres -d birdynator -Atqc "SELECT tableowner FROM pg_tables WHERE schemaname='public' AND tablename='memory';")"
 [[ "$mem_owner" == "birdynator_owner" ]] && ok "memory table not owned by runtime role" || bad "unexpected memory owner: $mem_owner"
