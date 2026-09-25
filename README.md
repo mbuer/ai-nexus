@@ -1,188 +1,158 @@
 # AI Nexus
 
-Secure, reproducible home-lab platform for running isolated AI agents with controlled access and observability.
+AI Nexus is a secure, reproducible home-lab platform for running isolated AI agents with explicit network, data, secret, and recovery boundaries.
 
-## Current status
+The first real agent is **Birdynator**, a long-term personal bird analyst.
 
-The base VM, isolated AI network, controlled egress, WireGuard management path, rootless container runtime, and first agent memory service are operational.
+## Current platform
 
-### VM baseline
+- Debian 13 VM on Proxmox
+- OPNsense as the AI segment gateway, DNS, NAT, firewall, and egress-policy point
+- WireGuard-only management path
+- host nftables defense in depth
+- rootless Podman + Quadlet/systemd
+- PostgreSQL 17 + pgvector for durable agent state
+- local 384-dimensional embedding service
+- controlled OpenAI API access through a dedicated CONNECT proxy
+- read-only BirdNET PostgreSQL access through a separate fixed-destination datasource proxy
+- logical PostgreSQL backup + verified restore workflow
 
-- Hypervisor: Proxmox
-- VM: `ai-nexus`
-- OS: Debian 13.7 (Trixie)
-- Kernel: `6.12.107+deb13-amd64`
-- CPU: 2 vCPU
-- RAM: 8 GB
-- Disk: 32 GB
-- Machine: q35
-- Firmware: OVMF / UEFI
-- NIC model: VirtIO
-- Proxmox firewall: enabled
-- QEMU guest agent: installed
+Exact live addresses and credentials are intentionally excluded from this public repository.
 
-Known recovery snapshots:
+## Birdynator
 
-- `baseline-pre-network-segmentation`
-- post-network-cleanup snapshot taken after the isolated network and WireGuard management path were established
-- `baseline-ssh-firewall-hardening`
-- `baseline-security-audit`
-- `baseline-agent-memory`
+Birdynator currently supports:
 
-## Network model
+- structured canonical memory with provenance and lifecycle fields
+- model-versioned semantic embeddings
+- memory-aware OpenAI reasoning
+- manual model tiers:
+  - fast: `gpt-5.6-luna`
+  - default: `gpt-5.6-terra`
+  - deep: `gpt-5.6-sol`
+- real BirdNET + weather analysis
+- recent-window versus historical-baseline comparison
+- historical mean, standard deviation, percentiles, min/max, and sample counts
+- recent species-by-hour and confidence context
+- persisted analysis history with source-window provenance and a source-context digest
 
-AI Nexus is isolated from the main LAN and uses OPNsense as its only Layer-3 gateway.
+Default BirdNET analysis compares the latest 24 hours with the preceding 30-day baseline.
 
-Public documentation intentionally uses symbolic names instead of the live environment's exact addressing:
+See [Birdynator analysis](docs/birdynator-analysis.md).
+
+## Security model
 
 ```text
-Internet
-   |
-Home router
-   |
-HOME_LAN
-   |
-OPNsense
-   +-- WG_NET
-   |
-AI_GATEWAY
-   |
-vmbr1
-   |
-AI_HOST
+BirdNET PostgreSQL
+      |
+      | read-only role
+      v
+BirdNET fixed-destination proxy
+      |
+      v
+   Birdynator
+      |
+      +--> local embedding service
+      |
+      +--> OpenAI CONNECT proxy --> api.openai.com:443
+      |
+      v
+Birdynator PostgreSQL
 ```
 
-Validated:
+Important properties:
 
-- AI Nexus -> OPNsense reachability
-- DNS via OPNsense
-- HTTPS egress via OPNsense
-- outbound NAT
-- firewall logging
-- remote SSH over WireGuard
-- home SSH over a dedicated WireGuard peer, with intermittent resets still under investigation
-- normal home-lab access remains local while the Home profile is active
-- client-side static-route workaround removed
-- GitHub SSH works over TCP/443 without opening generic outbound TCP/22
+- Birdynator has no host-published port.
+- The agent does not receive direct general Internet access.
+- OpenAI egress is restricted to `api.openai.com:443` through a dedicated proxy.
+- BirdNET access uses a dedicated read-only database role.
+- The datasource proxy is isolated from the agent-memory database network.
+- Raw BirdNET rows remain authoritative source data; they are not copied into agent memory.
+- Generated analyses are stored separately from canonical memory.
 
-## Host security baseline
+See [Architecture](docs/architecture.md), [Agent runtime](docs/agent-runtime.md), and [Security baseline](docs/security-baseline.md).
 
-Current Debian hardening includes:
+## Normal operator workflow
 
-- direct root SSH disabled
-- SSH key and password authentication retained for the non-root admin account
-- persistent nftables host firewall with default-drop inbound/forward policy
-- SSH accepted only from the WireGuard management network
-- outbound host policy left open; OPNsense remains the primary egress enforcement point
-- automatic Debian security/stable upgrades enabled without automatic reboot
-- persistent systemd journal storage
-- auditd enabled with targeted watches for SSH, sudoers, nftables, identity files, and systemd unit configuration
+Initial/reproducible platform operations:
 
-See `docs/security-baseline.md`.
-
-## Management access
-
-AI Nexus management uses WireGuard both at home and away.
-
-Home and Away use **separate peer identities and keypairs**.
-
-- Home profile routes only `AI_NET` through WireGuard and uses the firewall's local LAN endpoint.
-- Away profile routes both `HOME_LAN` and `AI_NET` through WireGuard and uses the public endpoint.
-
-Exact live addresses are intentionally not stored in this public repository.
-
-## Agent runtime
-
-The first runtime layer is now operational:
-
-- Podman 5.4.x
-- rootless containers under the non-root admin account
-- `crun` OCI runtime
-- `netavark` networking
-- journald container logging
-- seccomp enabled
-- dedicated internal Podman network for service-to-service traffic
-
-The internal service network is intentionally not documented with its live subnet.
-
-### Agent memory service
-
-PostgreSQL 17 is running as a rootless container on the isolated internal Podman network.
-
-Current model:
-
-- no PostgreSQL host port is published
-- persistent database storage uses a Podman volume
-- PostgreSQL superuser credential is stored locally and exposed to the container through a Podman secret
-- the first named agent is **Birdynator**, a long-term personal bird analyst
-- Birdynator has its own database role and database
-- the Birdynator role has no elevated PostgreSQL attributes
-- the Birdynator credential is separate from the PostgreSQL superuser credential
-- the `memory` table is owned by Birdynator
-- authenticated read/write access was verified from a separate temporary container
-- pgvector 0.8.6 is enabled in the Birdynator database
-- the memory schema now includes a `vector(384)` embedding column with an HNSW cosine index
-
-See `docs/agent-runtime.md`.
-
-## Controlled GitHub access
-
-The repository remote uses SSH, but generic outbound TCP/22 is intentionally not opened from the AI subnet.
-
-AI Nexus therefore uses GitHub's supported SSH-over-443 endpoint via `~/.ssh/config`:
-
-```sshconfig
-Host github.com
-    HostName ssh.github.com
-    Port 443
-    User git
+```bash
+make plan
+make bootstrap
+make verify
+make backup
+make restore-test
 ```
 
-## Why this design
+Normal Birdynator code iteration:
 
-The consumer home router does not provide the static-routing flexibility needed for an elegant direct LAN -> AI subnet path while OPNsense remains a secondary router.
+```bash
+git pull
+make birdynator-update
+```
 
-A client-side static route was tested but produced unstable SSH sessions. Reusing the same WireGuard peer identity for both Home and Away profiles also produced instability.
+The update target applies pending migrations, reuses the cached Birdynator base image by default, restarts only Birdynator, and verifies its security/data paths.
 
-The final management design uses separate WireGuard peers and keeps OPNsense as the single enforcement and observation point for the AI segment.
+To deliberately refresh its Python base image:
 
-## Public-repository policy
+```bash
+BIRDYNATOR_REFRESH_BASE=1 make birdynator-update
+```
 
-Architecture and decisions are public; live addressing is not.
+Run an analysis:
 
-Use:
+```bash
+podman exec agent-birdynator \
+  python /app/birdynator.py analyze-birdnet
+```
 
-- `config/network.example.yaml` for safe example values
-- `config/network.local.yaml` for real local values
+List persisted analyses:
 
-The local file is ignored by Git.
+```bash
+podman exec agent-birdynator \
+  python /app/birdynator.py analysis-history
+```
 
-Never commit passwords, API keys, private SSH keys, WireGuard private keys, pre-shared keys, tokens, WAN addresses, or screenshots containing sensitive network details.
+## State and recovery
 
-## Design goals
+AI Nexus separates disposable runtime from durable state.
 
-- secure agent execution
-- reproducible infrastructure
-- default-deny network boundaries
-- least-privilege access
-- centralized observability and auditability
-- separation of agent runtime, tools, data, and secrets
-- human approval for sensitive or destructive actions
+Durable Birdynator state includes:
 
-## Restore validation
+- canonical memory
+- embeddings and embedding-model metadata
+- persisted analysis history
 
-The logical PostgreSQL backup path has been tested end to end. A backup was restored into a temporary database, the existing Birdynator memory record was recovered, and the model-aware `memory_embeddings` table was present.
+Logical PostgreSQL dumps complement Proxmox snapshots/backups. The logical restore path has been tested.
 
-The next backup step is to keep the logical dump outside the AI Nexus VM. The preferred design is an off-host backup target that the agent runtime cannot freely modify.
+See [Backup and recovery](docs/backup-recovery.md).
 
-## Next steps
+## Repository policy
 
-1. Continue observing Home WireGuard stability and capture the next failure without restarting the tunnel.
-2. Add reproducible configuration management.
-3. Add the local embedding service and populate Birdynator's semantic memory vectors.
-4. Define Birdynator's first real agent container and per-agent permissions.
-5. Formalize secrets handling and backup/recovery for agent state.
-6. Add centralized off-host logging and metrics.
-7. Review and tighten OPNsense egress rules as agent requirements become known.
+This repository is public.
 
-See `docs/` for architecture, networking, management access, troubleshooting history, and decision records.
+Never commit:
+
+- passwords or API keys
+- SSH/WireGuard private keys or pre-shared keys
+- tokens
+- WAN addressing
+- exact private addressing/topology from the live environment
+- screenshots containing sensitive infrastructure details
+
+Use symbolic names in documentation and keep environment-specific values in ignored local configuration.
+
+## Start here
+
+For a compact overview of the project and the important reading order, see [Executive summary](docs/executive-summary.md).
+
+Detailed references:
+
+- [Architecture](docs/architecture.md)
+- [Birdynator analysis](docs/birdynator-analysis.md)
+- [Agent runtime](docs/agent-runtime.md)
+- [Reproducible runtime](docs/reproducible-runtime.md)
+- [Decision log](docs/decisions.md)
+- [Network](docs/network.md)
+- [Security baseline](docs/security-baseline.md)
+- [Backup and recovery](docs/backup-recovery.md)
