@@ -10,13 +10,14 @@ The embedding service converts text into normalized vectors for semantic retriev
 
 ## Reproducibility
 
-- Python dependencies are pinned.
+- Direct application dependencies are pinned.
+- PyTorch is explicitly installed from the official CPU-only wheel index and pinned to 2.13.0.
 - The model revision is pinned.
 - The Python base-image tag is resolved to a content digest during each explicit build.
 - The model is downloaded during image build and stored inside the image.
 - Runtime uses offline Hugging Face/Transformers mode.
 
-A fully hashed transitive Python dependency lock remains a later hardening step.
+A fully hashed transitive Python dependency lock remains a later hardening step. The first build unintentionally pulled CUDA dependencies from PyPI; the CPU-only PyTorch index is now explicit so the runtime does not carry an unused NVIDIA/CUDA stack.
 
 ## Security
 

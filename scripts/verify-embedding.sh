@@ -9,7 +9,7 @@ tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 
 for _ in $(seq 1 60); do
-    if podman exec ai-nexus-embedding python - <<'PY' >"$tmp" 2>/dev/null
+    if podman exec -i ai-nexus-embedding python - <<'PY' >"$tmp" 2>/dev/null
 from urllib.request import urlopen
 with urlopen("http://127.0.0.1:8000/health", timeout=2) as r:
     print(r.read().decode())
@@ -37,7 +37,7 @@ health="$(cat "$tmp")"
     exit 1
 }
 
-result="$(podman exec ai-nexus-embedding python - <<'PY'
+result="$(podman exec -i ai-nexus-embedding python - <<'PY'
 import json
 from urllib.request import Request, urlopen
 payload = json.dumps({"texts": ["A Western Tanager appeared after rain."]}).encode()
