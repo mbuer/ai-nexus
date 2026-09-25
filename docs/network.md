@@ -5,21 +5,21 @@
 ```text
 Internet
    |
-Spectrum router
-192.168.1.1
+Home router
    |
-Home LAN 192.168.1.0/24
+HOME_LAN
    |
-OPNsense 192.168.1.25
+OPNsense
+   +-- WG_NET
    |
-   +-- WireGuard 10.10.10.0/24
-   |
-AI interface 10.50.0.1/24
+AI_GATEWAY
    |
 vmbr1
    |
-ai-nexus 10.50.0.10/24
+AI_HOST
 ```
+
+Exact live addressing is intentionally kept out of this public repository.
 
 ## Design intent
 
@@ -37,9 +37,7 @@ If OPNsense is unavailable:
 
 ### Main LAN
 
-`vmbr0` is bridged to physical Ethernet interface `ents4`.
-
-The Proxmox Wi-Fi interface is down and is not part of the production path.
+`vmbr0` is bridged to the physical LAN interface.
 
 ### AI bridge
 
@@ -57,55 +55,42 @@ Properties:
 
 ### LAN side
 
-- LAN address: `192.168.1.25/24`
-- upstream/default gateway: Spectrum router `192.168.1.1`
+OPNsense is attached to `HOME_LAN` and uses the home router as its upstream gateway.
 
 ### AI interface
 
-- device: `vtnet1`
-- address: `10.50.0.1/24`
-- IPv4: static
-- IPv6: disabled
+- dedicated interface for `AI_NET`
+- IPv4 static
+- IPv6 disabled
 - gateway: none
 - private network blocking: disabled
 - bogon blocking: disabled
 
 ### WireGuard
 
-WireGuard network:
+Management uses `WG_NET`.
+
+Home and Away use separate dedicated peer identities.
+
+SSH to AI Nexus is allowed conceptually as:
 
 ```text
-10.10.10.0/24
+WG_NET -> AI_HOST:22
 ```
-
-Management peers:
-
-```text
-Away / work laptop   10.10.10.3/32   dedicated keypair
-Home laptop          10.10.10.4/32   dedicated keypair
-```
-
-SSH to AI Nexus is allowed from:
-
-```text
-10.10.10.0/24 -> 10.50.0.10:22
-```
-
-The Home and Away profiles are separate peers. Reusing one peer identity for both profiles was tested and produced unstable behavior.
 
 ### AI firewall policy
 
 Intended long-term rules include:
 
-- AI network -> This Firewall: DNS TCP/UDP 53
+- AI network -> OPNsense: DNS TCP/UDP 53
 - AI network -> Internet: HTTP/HTTPS egress
-- WireGuard subnet -> AI Nexus: SSH TCP 22
+- WireGuard network -> AI Nexus: SSH TCP 22
 
 Generic outbound SSH from AI Nexus to the Internet is not intentionally allowed.
 
 ### GitHub SSH over TCP/443
 
-AI Nexus keeps its GitHub SSH remote but redirects GitHub SSH to GitHub's supported TCP/443 endpoint:
+AI Nexus redirects GitHub SSH to GitHub's supported TCP/443 endpoint:
 
 ```sshconfig
 Host github.com
@@ -114,29 +99,20 @@ Host github.com
     User git
 ```
 
-Validated:
-
-```bash
-ssh -T git@github.com
-git pull
-```
-
 ### NAT
 
 OPNsense uses Hybrid Source NAT.
 
-Automatic NAT covers the AI subnet for outbound Internet access.
+Automatic outbound NAT covers `AI_NET` for Internet access.
 
 ## AI Nexus
 
-Persistent interface configuration:
+Persistent interface configuration conceptually contains:
 
 ```text
-auto ens19
-iface ens19 inet static
-    address 10.50.0.10/24
-    gateway 10.50.0.1
-    dns-nameservers 10.50.0.1
+address <AI_HOST>/<PREFIX>
+gateway <AI_GATEWAY>
+dns-nameservers <AI_GATEWAY>
 ```
 
 The previous direct LAN NIC was removed after the isolated path and WireGuard management path were validated.
@@ -144,8 +120,8 @@ The previous direct LAN NIC was removed after the isolated path and WireGuard ma
 Normal IPv4 traffic follows:
 
 ```text
-10.50.0.10
-    -> 10.50.0.1
+AI_HOST
+    -> AI_GATEWAY
     -> OPNsense policy
     -> NAT
     -> Internet
@@ -153,11 +129,7 @@ Normal IPv4 traffic follows:
 
 ## DNS
 
-AI Nexus uses OPNsense as its resolver:
-
-```text
-10.50.0.1
-```
+AI Nexus uses OPNsense as its resolver.
 
 `resolvconf` is installed so DNS is generated persistently from the interface configuration.
 
@@ -168,41 +140,39 @@ Direct local LAN management was intentionally abandoned.
 ### Home profile
 
 ```text
-Client address = 10.10.10.4/32
-Endpoint = 192.168.1.25:51820
-AllowedIPs = 10.50.0.0/24
+Client = dedicated Home peer
+Endpoint = local OPNsense LAN address
+AllowedIPs = AI_NET
 PersistentKeepalive = 25
-Keypair = dedicated Home keypair
 ```
 
 Behavior:
 
 ```text
-192.168.1.0/24 -> direct home LAN
-10.50.0.0/24   -> WireGuard -> OPNsense -> AI
+HOME_LAN -> direct home LAN
+AI_NET   -> WireGuard -> OPNsense -> AI
 ```
 
 ### Away / work profile
 
 ```text
-Client address = 10.10.10.3/32
-Endpoint = <public-wireguard-endpoint>:51820
-AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
-Keypair = dedicated Away keypair
+Client = dedicated Away peer
+Endpoint = public WireGuard endpoint
+AllowedIPs = HOME_LAN, AI_NET
 ```
 
 Behavior:
 
 ```text
-192.168.1.0/24 -> WireGuard -> home lab
-10.50.0.0/24   -> WireGuard -> AI Nexus
+HOME_LAN -> WireGuard -> home lab
+AI_NET   -> WireGuard -> AI Nexus
 ```
 
 ## Windows route state
 
 No persistent route is required.
 
-With the Home profile active, Windows installs `10.50.0.0/24` through the `10.10.10.4` WireGuard interface.
+When the Home profile is active, Windows installs the AI-subnet route through the Home WireGuard interface.
 
 ## Validation
 
@@ -212,13 +182,28 @@ Confirmed:
 - IPv4 HTTPS egress
 - outbound NAT
 - remote SSH over WireGuard
-- Home SSH via dedicated `10.10.10.4` peer
-- Home SSH source observed as `10.10.10.4`
+- Home SSH via a dedicated peer
 - WireGuard handshakes refresh during active use
 - home LAN remains directly reachable with the Home profile active
 - no persistent Windows route required
 - GitHub SSH over TCP/443
 - AI Nexus has no direct LAN NIC
+
+## Public configuration pattern
+
+Safe example values live in:
+
+```text
+config/network.example.yaml
+```
+
+Real values belong in:
+
+```text
+config/network.local.yaml
+```
+
+The local file is ignored by Git.
 
 ## Cleanup verification
 
