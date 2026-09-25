@@ -6,8 +6,8 @@ require_cmd podman
 require_cmd systemctl
 ensure_not_root
 
-"$REPO_ROOT/scripts/build-birdynator.sh"
-"$REPO_ROOT/scripts/migrate.sh"
+bash "$REPO_ROOT/scripts/build-birdynator.sh"
+bash "$REPO_ROOT/scripts/migrate.sh"
 
 podman network inspect ai-nexus-internal >/dev/null 2>&1 || {
     echo "ERROR: ai-nexus-internal does not exist." >&2
@@ -41,4 +41,4 @@ install -m 600 "$REPO_ROOT/containers/ai-nexus-birdynator.container" \
 systemctl --user daemon-reload
 systemctl --user restart ai-nexus-birdynator.service
 
-"$REPO_ROOT/scripts/verify-birdynator.sh"
+bash "$REPO_ROOT/scripts/verify-birdynator.sh"
