@@ -4,18 +4,18 @@
 
 AI Nexus management enters through WireGuard rather than directly from the home LAN.
 
-## Addresses
+This public document intentionally omits live environment addresses.
+
+## Symbolic addresses
 
 ```text
-Home LAN            192.168.1.0/24
-OPNsense LAN        192.168.1.25
-WireGuard network   10.10.10.0/24
-Away laptop peer    10.10.10.3/32
-Home laptop peer    10.10.10.4/32
-AI network          10.50.0.0/24
-AI Nexus            10.50.0.10
-SSH                 TCP/22
-WireGuard           UDP/51820
+HOME_LAN
+FIREWALL_LAN
+WG_NET
+WG_HOME_PEER
+WG_AWAY_PEER
+AI_NET
+AI_HOST
 ```
 
 ## Home profile
@@ -26,38 +26,31 @@ The Home profile is its own WireGuard peer with a unique keypair.
 
 ```ini
 [Interface]
-Address = 10.10.10.4/32
+Address = <WG_HOME_PEER>
 PrivateKey = <home-private-key>
 
 [Peer]
 PublicKey = <OPNsense-instance-public-key>
-AllowedIPs = 10.50.0.0/24
-Endpoint = 192.168.1.25:51820
+AllowedIPs = <AI_NET>
+Endpoint = <FIREWALL_LAN>:51820
 PersistentKeepalive = 25
 ```
 
-The corresponding OPNsense peer uses:
+The corresponding OPNsense peer uses the Home client's public key and matching Home peer address.
 
-```text
-Public Key: <Home Windows public key>
-Allowed IPs: 10.10.10.4/32
-Instance: HomeWireGuard
-Keepalive: 25
-```
-
-Never commit WireGuard private keys.
+Never commit WireGuard private keys or live peer addresses to this public repository.
 
 ### Expected routes
 
 ```text
-192.168.1.0/24 -> local Wi-Fi/Ethernet
-10.50.0.0/24   -> WireGuard
+HOME_LAN -> local Wi-Fi/Ethernet
+AI_NET   -> WireGuard
 ```
 
 ### Test
 
 ```powershell
-ssh mb@10.50.0.10
+ssh mb@<AI_HOST>
 ```
 
 On AI Nexus:
@@ -66,24 +59,20 @@ On AI Nexus:
 who
 ```
 
-The Home session should show source:
-
-```text
-10.10.10.4
-```
+The session should show the dedicated Home WireGuard peer as the source.
 
 ## Away / work profile
 
-The existing Away profile remains a separate peer.
+The Away profile remains a separate peer.
 
 ```ini
 [Interface]
-Address = 10.10.10.3/32
+Address = <WG_AWAY_PEER>
 PrivateKey = <away-private-key>
 
 [Peer]
 PublicKey = <OPNsense-instance-public-key>
-AllowedIPs = 192.168.1.0/24, 10.50.0.0/24
+AllowedIPs = <HOME_LAN>, <AI_NET>
 Endpoint = <public-wireguard-endpoint>:51820
 ```
 
@@ -98,19 +87,11 @@ That setup was unstable:
 - new SSH attempts would time out
 - restarting the tunnel restored access temporarily
 
-The dedicated Home peer at `10.10.10.4` removed that ambiguity and has remained stable during active use.
-
-Separate peer identities are therefore part of the intended design.
+A dedicated Home peer removed that ambiguity and remained stable during active use.
 
 ## GitHub access from AI Nexus
 
-The Git remote uses SSH:
-
-```text
-git@github.com:mbuer/ai-nexus.git
-```
-
-The AI egress policy does not broadly allow outbound TCP/22.
+The Git remote uses SSH, while the AI egress policy does not broadly allow outbound TCP/22.
 
 AI Nexus therefore uses:
 
@@ -121,16 +102,9 @@ Host github.com
     User git
 ```
 
-Quick validation:
-
-```bash
-ssh -T git@github.com
-git pull
-```
-
 ## Windows route state
 
-The old static route is no longer required.
+The old static-route workaround is no longer required.
 
 Expected:
 
@@ -143,10 +117,10 @@ None
 
 Management requires:
 
-- WireGuard instance active on OPNsense
+- WireGuard active on OPNsense
 - correct Home/Away peer configured
-- firewall permission from `10.10.10.0/24` to `10.50.0.10:22`
-- AI interface `10.50.0.1/24` available
+- firewall permission from `WG_NET` to `AI_HOST:22`
+- AI gateway available
 
 No direct LAN -> AI SSH rule is required.
 
@@ -160,14 +134,12 @@ git fetch
 curl -4 https://deb.debian.org/ -o /dev/null
 ```
 
-Watch the Windows WireGuard tunnel during active use.
-
 Expected:
 
 - SSH remains connected
 - latest handshake refreshes during active traffic
 - transfer counters increase
-- session source is `10.10.10.4`
+- session source is the dedicated Home peer
 
 ## Quick troubleshooting
 
@@ -176,14 +148,10 @@ Expected:
 Check:
 
 1. Home tunnel is active
-2. Home peer has `10.10.10.4/32`
-3. endpoint is `192.168.1.25:51820`
+2. Home peer identity matches the OPNsense peer
+3. endpoint points to the local OPNsense LAN address
 4. OPNsense peer contains the matching Home public key
-5. OPNsense peer Allowed IPs contains `10.10.10.4/32`
-
-### Session comes from 10.10.10.3
-
-The Away profile is active. The Home profile should appear as `10.10.10.4`.
+5. Allowed IPs match the intended Home peer and AI subnet
 
 ### Git pull hangs
 
