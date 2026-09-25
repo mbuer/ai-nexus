@@ -15,65 +15,52 @@ Treat the repository as the source of truth for architecture, decisions, and fut
 - Treat OPNsense as the enforcement point for AI Nexus.
 - Do not create direct LAN bypasses around the AI security boundary.
 - Prefer reproducible configuration over undocumented manual changes.
-- Keep secrets out of Git.
+- Keep secrets and environment-specific addressing out of Git.
 
-## Current network facts
+## Public-repository hygiene
+
+This repository is public.
+
+Do not commit:
+
+- exact private IP addresses or subnets from the live environment
+- public WAN addresses or dynamic-DNS names
+- WireGuard peer addresses
+- MAC addresses
+- private hostnames that expose the live topology
+- screenshots containing sensitive network details
+- passwords, API keys, tokens, private keys, pre-shared keys, or credentials
+
+Use symbolic names in documentation:
 
 ```text
-Home LAN            192.168.1.0/24
-Spectrum router     192.168.1.1
-OPNsense LAN        192.168.1.25
-WireGuard network   10.10.10.0/24
-Away laptop peer    10.10.10.3/32
-Home laptop peer    10.10.10.4/32
-AI network          10.50.0.0/24
-OPNsense AI         10.50.0.1
-AI Nexus            10.50.0.10
+HOME_LAN
+FIREWALL_LAN
+WG_NET
+WG_HOME_PEER
+WG_AWAY_PEER
+AI_NET
+AI_GATEWAY
+AI_HOST
 ```
+
+Use `config/network.example.yaml` for safe examples and keep real values in the ignored `config/network.local.yaml`.
+
+## Current architecture
 
 AI Nexus has one active network path through the isolated Proxmox bridge `vmbr1`.
 
+Management enters through WireGuard. Home and Away use separate peer identities.
+
 IPv6 is intentionally not enabled on the AI segment.
-
-## Management access
-
-Management enters through WireGuard.
-
-### Home
-
-- dedicated peer: `10.10.10.4/32`
-- local OPNsense endpoint: `192.168.1.25:51820`
-- AllowedIPs: `10.50.0.0/24`
-
-### Away / work
-
-- dedicated peer: `10.10.10.3/32`
-- public WireGuard endpoint
-- AllowedIPs: `192.168.1.0/24, 10.50.0.0/24`
-
-Do not merge these peers or reuse one peer identity for both profiles.
 
 ## Egress
 
-AI Nexus uses OPNsense for DNS, NAT, and controlled Internet access.
+AI Nexus uses OPNsense for DNS, NAT, firewall policy, and controlled Internet access.
 
 Do not broadly enable outbound TCP/22 merely for GitHub.
 
 GitHub SSH is intentionally configured through `ssh.github.com:443`.
-
-## Secrets
-
-Never commit:
-
-- passwords
-- API keys
-- private SSH keys
-- WireGuard private keys
-- pre-shared keys
-- tokens
-- sensitive runtime data
-
-Use placeholders in documentation.
 
 ## Change discipline
 
@@ -85,7 +72,7 @@ Before changing networking or firewall behavior:
 4. Check `docs/troubleshooting-2026-09-23.md` before repeating past experiments.
 5. Prefer the smallest reversible change.
 6. Validate with concrete tests.
-7. Update documentation when the architecture or operating procedure changes.
+7. Update documentation when architecture or operating procedures change.
 
 ## Troubleshooting guidance
 
