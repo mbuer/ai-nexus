@@ -30,21 +30,20 @@ The architecture prioritizes:
 ```text
                          Internet
                             |
-                     Spectrum router
-                       192.168.1.1
+                       Home router
                             |
-                    Home LAN 192.168.1.0/24
+                         HOME_LAN
                             |
-                     OPNsense 192.168.1.25
+                         OPNsense
                        /            \
-              WireGuard             AI interface
-             10.10.10.0/24          10.50.0.1/24
+                    WG_NET        AI_GATEWAY
                                       |
                                     vmbr1
                                       |
-                                   ai-nexus
-                                  10.50.0.10
+                                   AI_HOST
 ```
+
+Exact live IP addresses are intentionally omitted from this public repository.
 
 ## AI Nexus VM
 
@@ -95,10 +94,8 @@ SSH management arrives through WireGuard:
 management client
     -> WireGuard
     -> OPNsense
-    -> 10.50.0.10:22
+    -> AI_HOST:22
 ```
-
-This is used both at home and remotely.
 
 ## Deliberate asymmetry
 
@@ -106,17 +103,17 @@ The AI segment depends on OPNsense.
 
 The normal home LAN does not.
 
-This is an important design choice: security controls for AI workloads can be strict without making the entire home network dependent on a Proxmox-hosted firewall VM.
+This allows strict AI controls without making the entire home network dependent on a Proxmox-hosted firewall VM.
 
 ## Home vs remote management
 
-Two WireGuard client profiles provide different routing behavior while using the same peer identity.
+Two WireGuard client profiles use separate peer identities.
 
 ### Home
 
 ```text
-Endpoint: 192.168.1.25:51820
-AllowedIPs: 10.50.0.0/24
+Endpoint: local OPNsense LAN address
+AllowedIPs: AI_NET
 ```
 
 Only AI-subnet traffic enters WireGuard. Normal home-lab traffic remains directly connected.
@@ -126,13 +123,11 @@ Only AI-subnet traffic enters WireGuard. Normal home-lab traffic remains directl
 ```text
 Endpoint: public WireGuard endpoint
 AllowedIPs:
-  192.168.1.0/24
-  10.50.0.0/24
+  HOME_LAN
+  AI_NET
 ```
 
 Both home-lab and AI-subnet traffic enter WireGuard.
-
-This solves a practical limitation of the Spectrum router without making static routes part of the architecture.
 
 ## Failure behavior
 
@@ -143,13 +138,13 @@ Expected:
 - AI Nexus loses routed Internet access
 - AI Nexus loses DNS through OPNsense
 - WireGuard management path to AI Nexus is unavailable
-- ordinary home LAN devices continue operating through the Spectrum router
+- ordinary home LAN devices continue operating through the home router
 
-### Spectrum Internet unavailable
+### Home Internet unavailable
 
 Expected:
 
-- home WireGuard management should still work because its endpoint is the local OPNsense address
+- local Home WireGuard management should still work
 - remote WireGuard access is unavailable
 - AI Nexus loses Internet egress
 
@@ -163,7 +158,7 @@ A baseline snapshot exists from before network segmentation.
 
 A second snapshot was taken after network isolation, WireGuard management, DNS persistence, and troubleshooting cleanup were completed.
 
-Snapshots are recovery aids, not configuration management. The long-term goal remains reproducibility from repository-controlled configuration.
+Snapshots are recovery aids, not configuration management.
 
 ## Planned platform layers
 
