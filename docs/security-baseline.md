@@ -170,6 +170,21 @@ Verified controls for the database runtime:
 
 These controls were verified after a PostgreSQL restart, migration check, full runtime verification, and fresh logical backup. The writable root filesystem and root-capable image entrypoint are retained deliberately rather than forcing a more aggressive profile that could interfere with PostgreSQL initialization or recovery.
 
+## Proxmox network boundary
+
+The AI Nexus VM network boundary was verified from the Proxmox host.
+
+Verified topology:
+
+- AI Nexus VM 104 has exactly one NIC
+- that NIC is attached only to `vmbr1`
+- `vmbr1` has no physical bridge ports and no IPv4 address on the Proxmox host
+- OPNsense VM 102 is the only other VM attached to `vmbr1`
+- OPNsense connects `vmbr1` to the normal LAN side through its separate `vmbr0` NIC
+- AI Nexus has no direct `vmbr0` attachment and therefore no direct Proxmox bridge path to the normal LAN
+
+This means routed traffic between AI Nexus and other networks must traverse OPNsense rather than bypassing it through the Proxmox host bridge.
+
 ## Deployment verification
 
 The Birdynator update workflow installs the current Quadlet definition into the user systemd container directory before reloading systemd and restarting the service. This prevents a code/image update from accidentally leaving an older runtime policy active.
