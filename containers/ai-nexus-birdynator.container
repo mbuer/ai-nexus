@@ -9,9 +9,9 @@ ContainerName=agent-birdynator
 Network=ai-nexus-internal
 Network=ai-nexus-proxy-link
 Network=ai-nexus-birdnet-link
-Secret=birdynator-db-password,type=mount,target=db-password
-Secret=openai-api-key,type=mount,target=openai-api-key
-Secret=birdnet-db-password,type=mount,target=birdnet-db-password
+Secret=birdynator-db-password,type=mount,target=db-password,uid=10001,gid=10001,mode=0400
+Secret=openai-api-key,type=mount,target=openai-api-key,uid=10001,gid=10001,mode=0400
+Secret=birdnet-db-password,type=mount,target=birdnet-db-password,uid=10001,gid=10001,mode=0400
 Environment=BIRDYNATOR_DB_HOST=ai-nexus-postgres
 Environment=BIRDYNATOR_DB_NAME=birdynator
 Environment=BIRDYNATOR_DB_USER=birdynator
@@ -29,7 +29,7 @@ Environment=BIRDYNATOR_EMBEDDING_MODEL_SLUG=all-minilm-l6-v2-1110a24
 Environment=BIRDYNATOR_MODEL_FAST=gpt-5.6-luna
 Environment=BIRDYNATOR_MODEL_DEFAULT=gpt-5.6-terra
 Environment=BIRDYNATOR_MODEL_DEEP=gpt-5.6-sol
-PodmanArgs=--memory=512m --cpus=0.75 --pids-limit=128 --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:rw,noexec,nosuid,size=64m
+PodmanArgs=--memory=512m --cpus=0.75 --pids-limit=128 --read-only --cap-drop=ALL --security-opt=no-new-privileges --ipc=private --tmpfs=/tmp:rw,noexec,nosuid,size=64m
 
 [Service]
 Restart=always
