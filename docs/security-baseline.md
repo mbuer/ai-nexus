@@ -75,6 +75,33 @@ A test change under `/etc/systemd/system` was successfully recorded with the exp
 
 The rules are intentionally small rather than adopting a broad generic compliance profile.
 
+## Agent container hardening
+
+Birdynator is deployed as a rootless Podman container and is additionally constrained at runtime.
+
+Verified controls:
+
+- container process runs as an unprivileged application user
+- root filesystem is read-only
+- no host ports are published
+- no host devices are passed through
+- PID namespace is private
+- seccomp filtering is active
+- effective, permitted, and bounding Linux capability sets are empty
+- `no-new-privileges` is active
+- direct Internet access from the agent is blocked
+- OpenAI access is available only through the dedicated allowlist proxy
+- BirdNET datasource access is available only through the dedicated database proxy
+- BirdNET datasource sessions are verified read-only
+
+The verification script checks these properties after deployment so a runtime drift or failed hardening change causes verification to fail rather than being silently accepted.
+
+## Deployment verification
+
+The Birdynator update workflow installs the current Quadlet definition into the user systemd container directory before reloading systemd and restarting the service. This prevents a code/image update from accidentally leaving an older runtime policy active.
+
+Proxy image builds use the cached pinned Python base image by default. Set `PROXY_REFRESH_BASE=1` when an intentional base-image refresh is required.
+
 ## Recovery checkpoint
 
 Snapshot:
