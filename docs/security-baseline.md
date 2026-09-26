@@ -99,6 +99,22 @@ Verified controls:
 
 The verification script checks these properties after deployment so a runtime drift or failed hardening change causes verification to fail rather than being silently accepted.
 
+## Supporting-service hardening
+
+The OpenAI egress proxy has been verified with the same containment profile used for the agent where compatible:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- no attachment to the agent-memory PostgreSQL network
+- outbound TLS reachability retained only through its dedicated egress network and application allowlist
+
+The BirdNET proxy and embedding service are reviewed separately and are not considered verified until their own deployment checks pass.
+
 ## Deployment verification
 
 The Birdynator update workflow installs the current Quadlet definition into the user systemd container directory before reloading systemd and restarting the service. This prevents a code/image update from accidentally leaving an older runtime policy active.
