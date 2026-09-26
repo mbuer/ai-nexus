@@ -113,7 +113,19 @@ The OpenAI egress proxy has been verified with the same containment profile used
 - no attachment to the agent-memory PostgreSQL network
 - outbound TLS reachability retained only through its dedicated egress network and application allowlist
 
-The BirdNET proxy and embedding service are reviewed separately and are not considered verified until their own deployment checks pass.
+The BirdNET proxy is also verified with the compatible containment profile:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- no attachment to the agent-memory PostgreSQL network
+- fixed-destination PostgreSQL reachability retained through its dedicated egress network
+
+The embedding service is reviewed separately and is not considered verified until its own deployment check passes.
 
 ## Deployment verification
 
