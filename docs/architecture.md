@@ -49,7 +49,7 @@ Exact live IP addresses are intentionally omitted from this public repository.
 
 - Debian 13.7
 - kernel `6.12.107+deb13-amd64`
-- 2 vCPU
+- 4 vCPU
 - 8 GB RAM
 - 32 GB disk
 - q35
@@ -227,7 +227,7 @@ Preferred properties:
 - restore procedures are tested, not assumed
 - VM snapshots and logical database backups are complementary rather than interchangeable
 
-The current logical backup mechanism is verified; off-host placement is the next recovery hardening step.
+The logical backup mechanism and off-VM Proxmox backup chain have been verified end to end. A fresh logical PostgreSQL dump is created before VM capture and is preserved inside the external Proxmox backup archive.
 
 ## Recovery checkpoints
 
