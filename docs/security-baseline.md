@@ -141,7 +141,7 @@ The embedding service is also verified with the compatible containment profile:
 
 PostgreSQL retains a writable root filesystem and its normal image entrypoint intentionally so initialization, upgrades, and recovery behavior are not disrupted.
 
-Target controls for the database runtime:
+Verified controls for the database runtime:
 
 - rootless Podman lifecycle
 - PostgreSQL server process runs as UID/GID 999
@@ -154,7 +154,7 @@ Target controls for the database runtime:
 - superuser password secret mounted root-only with mode `0400`
 - database ownership and Birdynator runtime-role separation remain enforced
 
-These controls are considered configured until the deployment verification passes. The writable root filesystem and root-capable image entrypoint are retained deliberately rather than forcing a more aggressive profile that could interfere with PostgreSQL initialization or recovery.
+These controls were verified after a PostgreSQL restart, migration check, full runtime verification, and fresh logical backup. The writable root filesystem and root-capable image entrypoint are retained deliberately rather than forcing a more aggressive profile that could interfere with PostgreSQL initialization or recovery.
 
 ## Deployment verification
 
