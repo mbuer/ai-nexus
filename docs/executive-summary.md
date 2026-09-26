@@ -114,7 +114,17 @@ The raw BirdNET dataset is not duplicated.
 
 ### Backup and recovery
 
-PostgreSQL logical backup and restore have been tested. VM snapshots/backups and logical database backups are treated as complementary recovery mechanisms.
+PostgreSQL logical backup and restore have been tested, and the full recovery chain has been verified end to end:
+
+```text
+fresh logical PostgreSQL dump
+        ->
+Proxmox VM snapshot backup
+        ->
+external backup storage
+```
+
+The VM backup is deliberately aborted if the fresh logical database backup fails. VM snapshots/backups and logical database backups remain complementary recovery mechanisms.
 
 Read:
 
