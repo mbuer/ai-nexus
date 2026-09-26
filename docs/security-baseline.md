@@ -125,7 +125,17 @@ The BirdNET proxy is also verified with the compatible containment profile:
 - no attachment to the agent-memory PostgreSQL network
 - fixed-destination PostgreSQL reachability retained through its dedicated egress network
 
-The embedding service is reviewed separately and is not considered verified until its own deployment check passes.
+The embedding service is also verified with the compatible containment profile:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- local model remains pinned and offline
+- text-to-vector smoke test passes at 384 dimensions
 
 ## Deployment verification
 
