@@ -8,14 +8,18 @@ OPNsense remains the primary network-policy and egress enforcement point. The ho
 
 ## SSH
 
-Current policy:
+Current verified policy:
 
 - direct root SSH disabled with `PermitRootLogin no`
-- public-key authentication enabled
-- password authentication intentionally retained for the non-root admin account
+- public-key authentication enabled and verified with a key-only login
+- password authentication intentionally retained and verified as a fallback for the non-root admin account
+- keyboard-interactive authentication disabled
+- only the `mb` account is allowed through SSH
+- `MaxAuthTries 3`
+- `LoginGraceTime 30`
 - management SSH is reachable only through the WireGuard management network
 
-The password fallback is deliberate for the current build phase and can be revisited later.
+The password fallback is deliberate. Key authentication remains the normal path while password login is retained as a recovery option.
 
 ## nftables
 
