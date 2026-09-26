@@ -86,9 +86,12 @@ Verified controls:
 - no host ports are published
 - no host devices are passed through
 - PID namespace is private
+- IPC namespace is private
 - seccomp filtering is active
 - effective, permitted, and bounding Linux capability sets are empty
 - `no-new-privileges` is active
+- mounted Birdynator secrets are restricted to UID/GID 10001 with mode `0400`
+- rootless user-namespace mapping is verified; container root maps to the non-root host user and container UIDs map into the subordinate UID range
 - direct Internet access from the agent is blocked
 - OpenAI access is available only through the dedicated allowlist proxy
 - BirdNET datasource access is available only through the dedicated database proxy
