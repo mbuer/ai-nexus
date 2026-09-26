@@ -75,6 +75,20 @@ A test change under `/etc/systemd/system` was successfully recorded with the exp
 
 The rules are intentionally small rather than adopting a broad generic compliance profile.
 
+## Rootless runtime audit coverage
+
+The AI Nexus rootless runtime is covered by targeted auditd watches in addition to the host-level security watches.
+
+Verified watches:
+
+- `/home/mb/.config/containers/systemd/` with key `ai_nexus_quadlet`
+- `/home/mb/projects/ai-nexus/config/runtime.local.env` with key `ai_nexus_runtime`
+- `/home/mb/ai-nexus-runtime/secrets/` with key `ai_nexus_secrets`
+
+The Quadlet directory is mode `0700`, the local runtime configuration is mode `0600`, the secrets directory is mode `0700`, and the individual secret source files are mode `0600`.
+
+Audit attribution was verified by creating and deleting a temporary file in the Quadlet directory. auditd recorded both events with the `ai_nexus_quadlet` key and attributed them to the logged-in `mb` user rather than only to a privileged helper process.
+
 ## Agent container hardening
 
 Birdynator is deployed as a rootless Podman container and is additionally constrained at runtime.
