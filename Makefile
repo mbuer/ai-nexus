@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: plan bootstrap migrate verify backup restore-test postgres-harden embedding-build embedding-deploy embedding-verify openai-proxy-build openai-proxy-deploy openai-proxy-verify birdnet-proxy-build birdnet-proxy-deploy birdnet-proxy-verify birdynator-build birdynator-deploy birdynator-update birdynator-verify
+.PHONY: plan bootstrap migrate verify repo-check backup restore-test postgres-harden embedding-build embedding-deploy embedding-verify openai-proxy-build openai-proxy-deploy openai-proxy-verify birdnet-proxy-build birdnet-proxy-deploy birdnet-proxy-verify birdynator-build birdynator-deploy birdynator-update birdynator-verify
 
 plan:
 	@./scripts/plan.sh
@@ -13,6 +13,9 @@ migrate:
 
 verify:
 	@./scripts/verify.sh
+
+repo-check:
+	@bash ./scripts/repo-check.sh
 
 backup:
 	@./scripts/backup-postgres.sh
