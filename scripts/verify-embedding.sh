@@ -37,6 +37,39 @@ health="$(cat "$tmp")"
     exit 1
 }
 
+security_state="$(podman exec ai-nexus-embedding sh -c     'grep -E "^(CapPrm|CapEff|CapBnd|NoNewPrivs|Seccomp):" /proc/1/status')"
+
+[[ "$security_state" == *'CapPrm:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: embedding service has permitted Linux capabilities: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'CapEff:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: embedding service has effective Linux capabilities: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'CapBnd:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: embedding service capability bounding set is not empty: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'NoNewPrivs:'$'\t''1'* ]] || {
+    echo "ERROR: embedding service no-new-privileges is not active: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'Seccomp:'$'\t''2'* ]] || {
+    echo "ERROR: embedding service seccomp filtering is not active: $security_state" >&2
+    exit 1
+}
+
+ipc_mode="$(podman inspect ai-nexus-embedding --format '{{.HostConfig.IpcMode}}')"
+[[ "$ipc_mode" == "private" ]] || {
+    echo "ERROR: embedding service IPC namespace is not private: $ipc_mode" >&2
+    exit 1
+}
+
 result="$(podman exec -i ai-nexus-embedding python - <<'PY'
 import json
 from urllib.request import Request, urlopen
@@ -56,4 +89,8 @@ PY
 echo "✓ embedding service healthy"
 echo "✓ pinned 384-dimensional model loaded"
 echo "✓ no host port published"
+echo "✓ Linux capabilities dropped"
+echo "✓ no-new-privileges active"
+echo "✓ seccomp filtering active"
+echo "✓ IPC namespace private"
 echo "✓ text -> vector smoke test passed"
