@@ -382,3 +382,17 @@ The workflow applies pending migrations, reuses the cached Python base image by 
 A base-image refresh is explicit through `BIRDYNATOR_REFRESH_BASE=1`.
 
 The Birdynator image build also compiles the Python source so syntax failures are caught during the build.
+
+
+## 2026-09-26 — Defer ML-to-Birdynator interface until ML evidence stabilizes
+
+The BirdNET/Infra ML stack is still under active development.
+
+Decision:
+
+- continue developing and validating the ML layer before designing the Birdynator integration contract
+- do not build a dedicated transport layer now; the existing datasource path is sufficient
+- once the useful ML outputs are better established, expose them through a narrow read-only evidence boundary
+- keep Birdynator dependent on stable analytical evidence rather than on model-specific internals, implementation details, or temporary experiment outputs
+
+This preserves independent ML iteration now while keeping a clean future integration point for Birdynator.
