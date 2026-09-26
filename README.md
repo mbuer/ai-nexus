@@ -188,3 +188,4 @@ Detailed references:
 - [Network](docs/network.md)
 - [Security baseline](docs/security-baseline.md)
 - [Backup and recovery](docs/backup-recovery.md)
+- [Break-glass recovery](docs/break-glass-recovery.md)
