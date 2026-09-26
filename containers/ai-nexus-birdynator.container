@@ -29,7 +29,7 @@ Environment=BIRDYNATOR_EMBEDDING_MODEL_SLUG=all-minilm-l6-v2-1110a24
 Environment=BIRDYNATOR_MODEL_FAST=gpt-5.6-luna
 Environment=BIRDYNATOR_MODEL_DEFAULT=gpt-5.6-terra
 Environment=BIRDYNATOR_MODEL_DEEP=gpt-5.6-sol
-PodmanArgs=--memory=512m --cpus=0.75 --pids-limit=128 --read-only --tmpfs=/tmp:rw,noexec,nosuid,size=64m
+PodmanArgs=--memory=512m --cpus=0.75 --pids-limit=128 --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:rw,noexec,nosuid,size=64m
 
 [Service]
 Restart=always
