@@ -29,7 +29,7 @@ else
 fi
 
 tracked_text="$(git ls-files '*.md' '*.sh' '*.pl' '*.env' '*.yaml' '*.yml' '*.toml' '*.txt')"
-if [[ -n "$tracked_text" ]] && grep -nE '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|sk-proj-[A-Za-z0-9_-]+|ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+' $tracked_text 2>/dev/null; then
+if [[ -n "$tracked_text" ]] && grep -nE -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|sk-proj-[A-Za-z0-9_-]+|ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+' $tracked_text 2>/dev/null; then
     bad "possible credential material found"
 else
     ok "credential-content check passed"
