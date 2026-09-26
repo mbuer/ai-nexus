@@ -137,6 +137,25 @@ The embedding service is also verified with the compatible containment profile:
 - local model remains pinned and offline
 - text-to-vector smoke test passes at 384 dimensions
 
+## PostgreSQL hardening
+
+PostgreSQL retains a writable root filesystem and its normal image entrypoint intentionally so initialization, upgrades, and recovery behavior are not disrupted.
+
+Target controls for the database runtime:
+
+- rootless Podman lifecycle
+- PostgreSQL server process runs as UID/GID 999
+- data directory remains mode `0700` and owned by UID/GID 999
+- no host port is published
+- internal container network only
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- superuser password secret mounted root-only with mode `0400`
+- database ownership and Birdynator runtime-role separation remain enforced
+
+These controls are considered configured until the deployment verification passes. The writable root filesystem and root-capable image entrypoint are retained deliberately rather than forcing a more aggressive profile that could interfere with PostgreSQL initialization or recovery.
+
 ## Deployment verification
 
 The Birdynator update workflow installs the current Quadlet definition into the user systemd container directory before reloading systemd and restarting the service. This prevents a code/image update from accidentally leaving an older runtime policy active.
