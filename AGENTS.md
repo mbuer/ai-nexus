@@ -67,15 +67,14 @@ GitHub SSH is intentionally configured through `ssh.github.com:443`.
 
 ## Change discipline
 
-Before changing networking or firewall behavior:
+Before architectural, security, networking, database, ML-integration, or other cross-cutting changes:
 
-1. Read `docs/architecture.md`.
-2. Read `docs/network.md`.
-3. Read `docs/decisions.md`.
-4. Check `docs/troubleshooting-2026-09-23.md` before repeating past experiments.
-5. Prefer the smallest reversible change.
-6. Validate with concrete tests.
-7. Update documentation when architecture or operating procedures change.
+1. Read `docs/decisions.md` first and treat recorded decisions as current architectural context unless deliberately superseded by a newer documented decision.
+2. Read the relevant architecture and subsystem documentation before proposing changes.
+3. For networking or firewall work, read `docs/architecture.md`, `docs/network.md`, and check `docs/troubleshooting-2026-09-23.md` before repeating past experiments.
+4. Prefer the smallest reversible change.
+5. Validate with concrete tests.
+6. Update documentation when architecture or operating procedures change.
 
 ## Troubleshooting guidance
 
