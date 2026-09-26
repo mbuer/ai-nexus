@@ -38,10 +38,40 @@ health="$(cat "$tmp")"
     exit 1
 }
 
+security_state="$(podman exec agent-birdynator sh -c     'grep -E "^(CapPrm|CapEff|CapBnd|NoNewPrivs|Seccomp):" /proc/1/status')"
+
+[[ "$security_state" == *'CapPrm:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: Birdynator has permitted Linux capabilities: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'CapEff:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: Birdynator has effective Linux capabilities: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'CapBnd:'$'\t''0000000000000000'* ]] || {
+    echo "ERROR: Birdynator capability bounding set is not empty: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'NoNewPrivs:'$'\t''1'* ]] || {
+    echo "ERROR: Birdynator no-new-privileges is not active: $security_state" >&2
+    exit 1
+}
+
+[[ "$security_state" == *'Seccomp:'$'\t''2'* ]] || {
+    echo "ERROR: Birdynator seccomp filtering is not active: $security_state" >&2
+    exit 1
+}
+
 echo "✓ Birdynator container healthy"
 echo "✓ Birdynator DB role verified"
 echo "✓ local embedding service reachable"
 echo "✓ no host port published"
+echo "✓ Linux capabilities dropped"
+echo "✓ no-new-privileges active"
+echo "✓ seccomp filtering active"
 echo "✓ agent remains on internal-only network"
 
 
