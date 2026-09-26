@@ -106,15 +106,18 @@ See [Architecture](docs/architecture.md), [Network](docs/network.md), [Agent run
 
 ## Normal operator workflow
 
-Initial/reproducible platform operations:
+Platform and recovery operations:
 
 ```bash
 make plan
 make bootstrap
 make verify
+make repo-check
 make backup
 make restore-test
 ```
+
+`make bootstrap` currently rebuilds the PostgreSQL/runtime foundation used by the platform. It is not yet a complete one-command reconstruction of every modern AI Nexus service.
 
 Normal Birdynator code iteration:
 
