@@ -15,6 +15,7 @@ The first real agent is **Birdynator**, a long-term personal bird analyst.
 - local 384-dimensional embedding service
 - controlled OpenAI API access through a dedicated CONNECT proxy
 - read-only BirdNET PostgreSQL access through a separate fixed-destination datasource proxy
+- upstream BirdNET station-health provenance is now persisted and runtime-verified on the Infra side
 - logical PostgreSQL backup + verified restore workflow
 
 Exact live addresses and credentials are intentionally excluded from this public repository.
