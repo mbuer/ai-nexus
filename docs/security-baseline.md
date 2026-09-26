@@ -14,7 +14,7 @@ Current verified policy:
 - public-key authentication enabled and verified with a key-only login
 - password authentication intentionally retained and verified as a fallback for the non-root admin account
 - keyboard-interactive authentication disabled
-- only the `mb` account is allowed through SSH
+- only the designated non-root administrative account is allowed through SSH
 - `MaxAuthTries 3`
 - `LoginGraceTime 30`
 - management SSH is reachable only through the WireGuard management network
@@ -85,13 +85,13 @@ The AI Nexus rootless runtime is covered by targeted auditd watches in addition 
 
 Verified watches:
 
-- `/home/mb/.config/containers/systemd/` with key `ai_nexus_quadlet`
-- `/home/mb/projects/ai-nexus/config/runtime.local.env` with key `ai_nexus_runtime`
-- `/home/mb/ai-nexus-runtime/secrets/` with key `ai_nexus_secrets`
+- `<ADMIN_HOME>/.config/containers/systemd/` with key `ai_nexus_quadlet`
+- `<PROJECT_ROOT>/config/runtime.local.env` with key `ai_nexus_runtime`
+- `<RUNTIME_ROOT>/secrets/` with key `ai_nexus_secrets`
 
 The Quadlet directory is mode `0700`, the local runtime configuration is mode `0600`, the secrets directory is mode `0700`, and the individual secret source files are mode `0600`.
 
-Audit attribution was verified by creating and deleting a temporary file in the Quadlet directory. auditd recorded both events with the `ai_nexus_quadlet` key and attributed them to the logged-in `mb` user rather than only to a privileged helper process.
+Audit attribution was verified by creating and deleting a temporary file in the Quadlet directory. auditd recorded both events with the `ai_nexus_quadlet` key and attributed them to the logged-in administrative user rather than only to a privileged helper process.
 
 ## Agent container hardening
 
@@ -180,14 +180,55 @@ The AI Nexus VM network boundary was verified from the Proxmox host.
 
 Verified topology:
 
-- AI Nexus VM 104 has exactly one NIC
+- AI Nexus VM has exactly one NIC
 - that NIC is attached only to `vmbr1`
 - `vmbr1` has no physical bridge ports and no IPv4 address on the Proxmox host
-- OPNsense VM 102 is the only other VM attached to `vmbr1`
+- OPNsense VM is the only other VM attached to `vmbr1`
 - OPNsense connects `vmbr1` to the normal LAN side through its separate `vmbr0` NIC
 - AI Nexus has no direct `vmbr0` attachment and therefore no direct Proxmox bridge path to the normal LAN
 
 This means routed traffic between AI Nexus and other networks must traverse OPNsense rather than bypassing it through the Proxmox host bridge.
+
+## Hypervisor administration
+
+The Proxmox management path is intentionally separated into routine administration and break-glass access.
+
+Verified controls:
+
+- routine administration uses a named non-root PAM account with sudo and Proxmox Administrator permissions
+- SSH key authentication is available for routine administration
+- password authentication remains available for the named administrative account as a fallback
+- direct root SSH is disabled
+- root console and Proxmox WebUI access are retained as break-glass paths
+- the existing administrative session was kept open while new access paths were verified
+
+## Backup boundary
+
+The database and VM recovery path has been verified end to end.
+
+Verified behavior:
+
+- the AI Nexus guest creates a fresh logical PostgreSQL backup immediately before its VM backup
+- the pre-backup action is invoked from the hypervisor through the QEMU Guest Agent rather than through a new network trust path
+- the hook aborts the VM backup if the logical database backup fails
+- the scheduled VM backup writes to external Proxmox backup storage
+- a manual end-to-end backup run verified logical backup creation, guest filesystem freeze/thaw, VM archive creation, retention processing, and successful completion
+- logical PostgreSQL restore testing is maintained separately from whole-VM recovery
+
+No live IP addresses, VM IDs, usernames, job IDs, or environment-specific filesystem paths are required to reproduce this design.
+
+## Final verification
+
+The final hardening audit verified:
+
+- the host exposes only SSH as a listening network service
+- the host firewall uses default-drop input and forward policies
+- SSH is restricted to the management network
+- root SSH is disabled
+- container services do not publish host ports
+- container-only service ports remain internal to the rootless Podman networks
+- the external backup storage is active and the scheduled backup job is enabled
+- the pre-backup database hook is attached to the scheduled VM backup job
 
 ## Deployment verification
 
@@ -200,7 +241,7 @@ Proxy image builds use the cached pinned Python base image by default. Set `PROX
 Snapshot:
 
 ```text
-baseline-security-audit
+<SECURITY_BASELINE_SNAPSHOT>
 ```
 
 Description:
