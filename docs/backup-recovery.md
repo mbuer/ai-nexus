@@ -21,11 +21,23 @@ A restore test successfully recovered:
 
 Newer logical backups also include Birdynator's persisted analysis history (`analysis_runs`) because it lives in the same PostgreSQL database.
 
+The off-VM recovery chain has also been verified:
+
+```text
+fresh logical PostgreSQL dump
+        ->
+Proxmox VM snapshot backup
+        ->
+external backup storage
+```
+
+The Proxmox backup hook aborts VM backup if the logical database backup fails.
+
 ## Security model
 
-The final backup target should be outside the AI Nexus VM.
+The durable backup target is outside the AI Nexus VM.
 
-Preferred design:
+Implemented design:
 
 ```text
 AI Nexus VM
@@ -52,7 +64,7 @@ It is useful for:
 - quick local recovery
 - handoff to an off-host backup process
 
-It is not sufficient by itself for host/disk failure.
+It is not sufficient by itself for host/disk failure; the durable copy is provided by the external Proxmox backup archive.
 
 ## Restore testing
 
