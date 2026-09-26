@@ -5,7 +5,7 @@ load_runtime_config
 for cmd in podman systemctl sudo sed grep loginctl; do require_cmd "$cmd"; done
 ensure_not_root
 
-echo "== AI Nexus reproducible bootstrap =="
+echo "== AI Nexus PostgreSQL/runtime foundation bootstrap =="
 
 mkdir -p "$AI_NEXUS_RUNTIME_ROOT"/{agents,services,data,secrets} "$AI_NEXUS_BACKUP_DIR"
 chmod 700 "$AI_NEXUS_RUNTIME_ROOT/secrets"
@@ -60,4 +60,4 @@ systemctl --user start ai-nexus-postgres.service
 wait_for_postgres
 "$REPO_ROOT/scripts/verify.sh"
 
-echo "Bootstrap complete. Next: make restore-test"
+echo "Foundation bootstrap complete. Next: make verify && make restore-test"
