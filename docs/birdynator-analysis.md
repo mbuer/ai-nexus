@@ -12,7 +12,7 @@ The design deliberately separates three kinds of state:
 
 Raw BirdNET rows are not copied into agent memory.
 
-The upstream BirdNET/Infra project also owns durable station-health/data-completeness provenance. Birdynator does not collect that telemetry itself. When the future ML/evidence interface is defined, Birdynator should consume stable upstream quality evidence where relevant so an incomplete or unknown observation hour is not interpreted as a confirmed biological absence.
+The upstream BirdNET/Infra project also owns durable station-health/data-completeness provenance, and that path is now deployed and runtime-verified. Birdynator does not collect that telemetry itself. When the future ML/evidence interface is defined, Birdynator should consume stable upstream quality evidence where relevant so an incomplete or unknown observation hour is not interpreted as a confirmed biological absence.
 
 ## Data path
 
