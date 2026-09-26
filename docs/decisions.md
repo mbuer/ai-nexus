@@ -399,7 +399,7 @@ This preserves independent ML iteration now while keeping a clean future integra
 
 ## 2026-09-26 — Preserve upstream BirdNET data-quality provenance
 
-The BirdNET/Infra project is adding durable hourly station-health evidence derived from BirdNET analysis telemetry and persisted in the authoritative analytical PostgreSQL environment.
+The BirdNET/Infra project now has durable hourly station-health evidence derived from BirdNET analysis telemetry and persisted in the authoritative analytical PostgreSQL environment. The collector, historical backfill, and scheduled timer have been runtime-verified.
 
 Decision:
 
@@ -408,7 +408,7 @@ Decision:
 - keep the existing Birdynator datasource path read-only
 - when the deferred ML-to-Birdynator evidence boundary is designed, include stable data-quality provenance such as healthy, incomplete, or unknown observation coverage where it materially affects interpretation
 - do not let Birdynator infer that a zero-detection hour proves biological absence when upstream station evidence is incomplete or unknown
-- make no AI Nexus runtime change now; the ML-to-Birdynator interface remains deferred until upstream evidence stabilizes
+- make no AI Nexus runtime change now; the ML-to-Birdynator interface remains deferred until the useful analytical/ML evidence contract stabilizes
 
 This preserves the separation between authoritative environmental evidence and agent-generated interpretation.
 
