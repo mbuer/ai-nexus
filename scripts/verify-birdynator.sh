@@ -60,10 +60,73 @@ security_state="$(podman exec agent-birdynator sh -c     'grep -E "^(CapPrm|CapE
     exit 1
 }
 
-[[ "$security_state" == *'Seccomp:'$'\t''2'* ]] || {
+[[ "$security_state" == *'Seccomp:'
+echo "✓ Birdynator DB role verified"
+echo "✓ local embedding service reachable"
+echo "✓ no host port published"
+echo "✓ Linux capabilities dropped"
+echo "✓ no-new-privileges active"
+echo "✓ seccomp filtering active"
+echo "✓ IPC namespace private"
+echo "✓ Birdynator secrets restricted to UID/GID 10001 with mode 0400"
+echo "✓ agent remains on internal-only network"
+
+
+api_health="$(podman exec agent-birdynator python /app/birdynator.py api-health)"
+[[ "$api_health" == *'"status": "ok"'* ]] || {
+    echo "ERROR: Birdynator OpenAI API health check failed: $api_health" >&2
+    exit 1
+}
+
+if podman exec -i agent-birdynator python - <<'PY' >/dev/null 2>&1
+import socket
+socket.create_connection(("1.1.1.1", 443), timeout=3).close()
+PY
+then
+    echo "ERROR: Birdynator has direct Internet egress; expected proxy-only access." >&2
+    exit 1
+fi
+
+echo "✓ OpenAI API reachable through controlled proxy"
+echo "✓ direct Internet egress blocked from Birdynator"
+
+
+birdnet_health="$(podman exec agent-birdynator python /app/birdynator.py birdnet-health)"
+[[ "$birdnet_health" == *'"status": "ok"'* ]] || {
+    echo "ERROR: Birdynator BirdNET datasource health check failed: $birdnet_health" >&2
+    exit 1
+}
+[[ "$birdnet_health" == *'"read_only": "on"'* ]] || {
+    echo "ERROR: BirdNET datasource session is not read-only: $birdnet_health" >&2
+    exit 1
+}
+
+echo "✓ BirdNET datasource reachable through isolated proxy"
+echo "✓ BirdNET datasource session is read-only"
+
+
+podman exec agent-birdynator python /app/birdynator.py analysis-history --limit 1 >/dev/null
+
+echo "✓ persisted analysis schema reachable"
+\t''2'* ]] || {
     echo "ERROR: Birdynator seccomp filtering is not active: $security_state" >&2
     exit 1
 }
+
+ipc_mode="$(podman inspect agent-birdynator --format '{{.HostConfig.IpcMode}}')"
+[[ "$ipc_mode" == "private" ]] || {
+    echo "ERROR: Birdynator IPC namespace is not private: $ipc_mode" >&2
+    exit 1
+}
+
+secret_state="$(podman exec agent-birdynator sh -c     'stat -c "%a %u:%g %n" /run/secrets/db-password /run/secrets/openai-api-key /run/secrets/birdnet-db-password')"
+
+while IFS= read -r line; do
+    [[ "$line" == "400 10001:10001 "* ]] || {
+        echo "ERROR: Birdynator secret ownership/mode is not 0400 10001:10001: $line" >&2
+        exit 1
+    }
+done <<< "$secret_state"
 
 echo "✓ Birdynator container healthy"
 echo "✓ Birdynator DB role verified"
