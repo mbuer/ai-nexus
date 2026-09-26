@@ -28,6 +28,9 @@ Do not commit:
 - WireGuard peer addresses
 - MAC addresses
 - private hostnames that expose the live topology
+- VM IDs, backup/job IDs, or other live environment identifiers
+- personal or local usernames
+- exact environment-specific filesystem paths
 - screenshots containing sensitive network details
 - passwords, API keys, tokens, private keys, pre-shared keys, or credentials
 
@@ -88,18 +91,21 @@ Distinguish:
 
 Avoid stacking multiple configuration changes before validating the previous one.
 
+## Administrative and recovery invariants
+
+- Routine administration uses a named non-root account.
+- Root access is break-glass only and is not the normal SSH path.
+- A fresh logical PostgreSQL backup must complete before the Proxmox VM backup proceeds.
+- Host hardening, container hardening, and the off-VM recovery chain are implemented and should be preserved unless a deliberate architecture decision replaces them.
+
 ## Repository intent
 
 Future work should move toward:
 
-- Debian hardening
 - configuration management
-- containerized workloads
-- per-agent identities
-- secrets handling
 - centralized logs and metrics
 - versioned agent definitions
-- recovery automation
+- stronger automated rebuild/recovery workflows
 
 When adding automation, make it understandable and reversible.
 
