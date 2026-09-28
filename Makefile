@@ -12,7 +12,11 @@ migrate:
 	@./scripts/migrate.sh
 
 verify:
-	@./scripts/verify.sh
+	@bash ./scripts/verify.sh
+	@bash ./scripts/verify-embedding.sh
+	@bash ./scripts/verify-openai-proxy.sh
+	@bash ./scripts/verify-birdnet-proxy.sh
+	@bash ./scripts/verify-birdynator.sh
 
 repo-check:
 	@bash ./scripts/repo-check.sh

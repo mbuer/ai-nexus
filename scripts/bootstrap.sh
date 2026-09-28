@@ -60,4 +60,4 @@ systemctl --user start ai-nexus-postgres.service
 wait_for_postgres
 "$REPO_ROOT/scripts/verify.sh"
 
-echo "Foundation bootstrap complete. Next: make verify && make restore-test"
+echo "Foundation bootstrap complete. Next: make restore-test. After all services are deployed, run make verify."

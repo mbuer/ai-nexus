@@ -120,6 +120,8 @@ make restore-test
 
 `make bootstrap` currently rebuilds the PostgreSQL/runtime foundation used by the platform. It is not yet a complete one-command reconstruction of every modern AI Nexus service.
 
+`make verify` checks the foundation, embedding service, both proxies, and Birdynator in that order, stopping on the first failure. Run it on the fully deployed AI Nexus host with working OpenAI API and BirdNET datasource access. For a foundation-only bootstrap, use `bash scripts/verify.sh`.
+
 Normal Birdynator code iteration:
 
 ```bash

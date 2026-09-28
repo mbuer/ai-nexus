@@ -4,7 +4,7 @@
 
 This repository documents and automates AI Nexus, a security-focused home-lab platform for running isolated AI agents.
 
-Treat the repository as the source of truth for architecture, decisions, and future automation.
+Treat the repository as the source of truth for architecture, decisions, and automation.
 
 ## Core principles
 
@@ -97,16 +97,14 @@ Avoid stacking multiple configuration changes before validating the previous one
 - A fresh logical PostgreSQL backup must complete before the Proxmox VM backup proceeds.
 - Host hardening, container hardening, and the off-VM recovery chain are implemented and should be preserved unless a deliberate architecture decision replaces them.
 
-## Repository intent
+## Validation commands
 
-Future work should move toward:
+- `make repo-check`: repository syntax and public-repository hygiene.
+- `make verify`: full deployed runtime (foundation, embedding, both proxies, then Birdynator); stops at the first failure and requires live OpenAI/BirdNET access.
+- `bash scripts/verify.sh`: foundation-only verification after bootstrap.
+- `make restore-test`: restore the latest logical dump into a temporary database and validate it.
 
-- configuration management
-- centralized logs and metrics
-- versioned agent definitions
-- stronger automated rebuild/recovery workflows
-
-When adding automation, make it understandable and reversible.
+Run checks appropriate to the change and distinguish local checks from live-host verification. Keep automation understandable and reversible; documented limitations are not an automatic work queue.
 
 
 ## Agent capability pattern

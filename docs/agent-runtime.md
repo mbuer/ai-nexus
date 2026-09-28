@@ -177,15 +177,6 @@ Controlled OpenAI reasoning is now validated:
 - the default Terra tier and explicit Sol deep tier both returned the correct answer from retrieved memory
 - Responses API requests use `store: false`
 
-## Next steps
-
-1. Test multi-observation reasoning and hypothesis formation.
-2. Add explicit model-tier selection/escalation logic beyond manual `--tier`.
-3. Add structured provenance to generated analytical conclusions.
-4. Add observability for agent requests, model tier, latency, and token/cost usage without logging secrets or full private prompts by default.
-5. Continue recovery validation after agent memory and reasoning state expand.
-
-
 ## BirdNET datasource
 
 BirdNET PostgreSQL remains an authoritative external datasource rather than becoming agent memory.

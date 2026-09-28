@@ -412,3 +412,9 @@ Decision:
 
 This preserves the separation between authoritative environmental evidence and agent-generated interpretation.
 
+## 2026-09-27 — Make full runtime verification explicit
+
+`make verify` runs the existing foundation, embedding, OpenAI proxy, BirdNET proxy, and Birdynator checks in dependency order and stops at the first failure. It requires the fully deployed runtime and working external capability paths.
+
+`scripts/verify.sh` remains the foundation-only check used by bootstrap. Bootstrap does not deploy all services, so its completion message must not imply that full runtime verification is available on a foundation-only host. No service deployment or security policy changes are part of this cleanup.
+

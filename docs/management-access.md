@@ -50,7 +50,7 @@ AI_NET   -> WireGuard
 ### Test
 
 ```powershell
-ssh mb@<AI_HOST>
+ssh <ADMIN_USER>@<AI_HOST>
 ```
 
 On AI Nexus:

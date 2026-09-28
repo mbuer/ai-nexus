@@ -16,11 +16,13 @@ Apply the current baseline:
 make bootstrap
 ```
 
-Verify it:
+Verify the complete deployed runtime (foundation, embedding service, both proxies, and Birdynator):
 
 ```bash
 make verify
 ```
+
+`make bootstrap` installs only the PostgreSQL/runtime foundation. On a foundation-only host, use `bash scripts/verify.sh`; deploy the supporting services and Birdynator before running `make verify`. The full check runs in dependency order and stops at the first failure. Birdynator verification requires working OpenAI API and BirdNET datasource access.
 
 Test recovery:
 
@@ -62,7 +64,7 @@ Authoritative BirdNET/weather/source data should remain domain data, not self-au
 
 The default backup location is still on the VM and should be treated as a staging location, not the final recovery boundary.
 
-The preferred design is to copy or pull logical backups to an off-host target outside the AI Nexus trust boundary. Avoid exposing a broad writable backup filesystem directly to the agent VM when a narrower transfer path can be used.
+The verified off-VM chain uses a [Proxmox backup hook](proxmox-backup-hook.md) to create a fresh logical PostgreSQL backup before the VM archive is written to external backup storage. The hook aborts the VM backup if the logical backup fails. The external VM archive provides the durable off-host copy without mounting broad writable backup storage into the agent VM. See [Backup and recovery](backup-recovery.md).
 
 `make restore-test` restores the latest dump into a temporary database, validates it, and deletes the test database.
 
