@@ -1,0 +1,420 @@
+# Decision Log
+
+## 2026-09-23 — Platform scope
+
+AI Nexus is a long-term secure agent execution platform rather than a general-purpose AI VM.
+
+Primary qualities:
+
+- secure
+- scalable
+- reproducible
+- observable
+- least privilege
+
+## 2026-09-23 — Initial VM sizing
+
+Selected baseline:
+
+- 2 vCPU
+- 8 GB RAM
+- 32 GB disk
+
+## 2026-09-23 — Virtual hardware
+
+Selected:
+
+- q35 machine type
+- OVMF / UEFI
+- VirtIO networking
+- VirtIO SCSI
+- Proxmox firewall enabled on VM NICs
+
+## 2026-09-23 — Repository
+
+Repository: `mbuer/ai-nexus`
+
+The repository is the source of truth for architecture, decisions, configuration, and future automation.
+
+Secrets and live environment-specific addressing must not be committed.
+
+## 2026-09-23 — Network isolation
+
+A dedicated Proxmox bridge (`vmbr1`) and dedicated OPNsense AI interface were selected instead of attaching AI Nexus directly to the home LAN.
+
+The home network remains independent of OPNsense. The AI segment intentionally depends on it.
+
+## 2026-09-23 — Single network path
+
+AI Nexus uses only:
+
+```text
+AI_HOST -> AI_GATEWAY -> OPNsense
+```
+
+The temporary direct-LAN NIC was removed.
+
+## 2026-09-23 — Controlled Internet access
+
+AI Nexus uses OPNsense for:
+
+- DNS
+- HTTP/HTTPS egress
+- outbound NAT
+- firewall logging
+
+Generic outbound TCP/22 is not intentionally permitted.
+
+## 2026-09-23 — DNS through OPNsense
+
+AI Nexus uses OPNsense as its DNS resolver.
+
+`resolvconf` is installed and the DNS resolver is part of the persistent Debian interface configuration.
+
+## 2026-09-23 — GitHub SSH over 443
+
+The Git remote remains SSH-based, but GitHub SSH is redirected to `ssh.github.com:443`.
+
+This avoids opening generic outbound TCP/22 solely for repository access.
+
+## 2026-09-23 — Reject client-side static routing as normal management
+
+A Windows persistent route to the AI subnet through OPNsense was tested and later removed.
+
+The path was operationally complex and unstable.
+
+## 2026-09-24 — Separate WireGuard peers for Home and Away
+
+The original Home profile reused the Away peer identity.
+
+That produced intermittent failures:
+
+- SSH reset after initially working
+- subsequent SSH attempts timed out
+- restarting the tunnel temporarily restored access
+
+The final design uses distinct peers and separate keypairs.
+
+### Home
+
+```text
+Endpoint = local OPNsense LAN address
+AllowedIPs = AI_NET
+PersistentKeepalive = 25
+```
+
+### Away / work
+
+```text
+Endpoint = public WireGuard endpoint
+AllowedIPs = HOME_LAN, AI_NET
+```
+
+The Home session was verified as originating from the dedicated Home peer. Separate peer identities remain the correct architecture, but later testing showed that intermittent SSH resets can still occur, so peer reuse was not the sole cause.
+
+## 2026-09-24 — Sanitize public network documentation
+
+The repository remains public, but exact live network addressing is no longer part of public documentation.
+
+Rationale:
+
+- RFC1918 addresses are not Internet-routable, but publishing exact topology and management addressing provides unnecessary environmental detail.
+- The learning value is preserved by documenting roles and relationships symbolically.
+- Real values belong in a local ignored configuration file.
+
+Pattern:
+
+```text
+config/network.example.yaml   # safe example
+config/network.local.yaml     # real values, ignored
+```
+
+## 2026-09-23 — Troubleshooting changes are not architecture
+
+The following are not part of the intended final architecture:
+
+- explicit LAN laptop -> AI Nexus SSH rule
+- temporary AI -> OPNsense ICMP rule
+- per-rule `Disable reply-to`
+- global `Disable force gateway`
+- Windows persistent route
+
+## 2026-09-23 — IPv6
+
+IPv6 is not enabled on the AI segment.
+
+## 2026-09-23 — Snapshot after network cleanup
+
+A recovery snapshot was taken after the isolated networking and management path were established.
+
+Snapshots are recovery checkpoints, not a substitute for configuration management.
+
+
+## 2026-09-24 — Debian security baseline
+
+The Debian host now provides defense in depth in addition to OPNsense.
+
+SSH:
+
+- direct root SSH disabled with `PermitRootLogin no`
+- public-key authentication enabled
+- password authentication intentionally retained for the non-root admin account
+
+Host firewall:
+
+- nftables enabled persistently
+- inbound and forwarding default to drop
+- loopback and established/related traffic allowed
+- SSH accepted only from the WireGuard management network
+- ICMP and ICMPv6 retained for diagnostics
+- outbound traffic accepted locally; OPNsense remains the primary egress policy boundary
+
+Updates and logging:
+
+- unattended upgrades enabled for the current Debian release and Debian security origins
+- package lists and unattended upgrades run daily
+- automatic reboot remains disabled
+- systemd journal storage is persistent
+- auditd and audispd plugins enabled
+- targeted audit watches cover SSH configuration, sudoers, nftables configuration, local identity files, and systemd unit configuration
+- an audit test confirmed configuration changes are recorded with user attribution
+
+## 2026-09-24 — Security baseline snapshot
+
+Snapshot:
+
+```text
+baseline-security-audit
+```
+
+Description:
+
+```text
+Hardened Debian baseline with root SSH disabled, nftables host firewall, unattended upgrades, persistent journald, and targeted auditd rules verified.
+```
+
+
+## 2026-09-24 — Rootless Podman runtime
+
+Podman was selected as the initial container runtime.
+
+Rationale:
+
+- supports rootless containers cleanly
+- avoids making a privileged Docker daemon a general agent capability
+- integrates with systemd/journald
+- supports per-container networking and secrets
+- fits the least-privilege design of AI Nexus
+
+The verified runtime uses `crun`, `netavark`, journald logging, and seccomp.
+
+## 2026-09-24 — Internal container service network
+
+A dedicated internal Podman network is used for agent-to-service communication.
+
+Design goals:
+
+- supporting services are not published to the host or LAN by default
+- agents can reach only the services attached to the same internal network
+- live container subnet details remain environment-specific and are not stored in the public repository
+
+## 2026-09-24 — PostgreSQL as the initial agent memory backend
+
+PostgreSQL 17 was selected as the first persistent memory backend.
+
+Initial design:
+
+- PostgreSQL runs as a rootless container
+- no host port is published
+- persistent data uses a Podman volume
+- the PostgreSQL superuser credential is stored locally and injected through a Podman secret
+- each agent receives a separate database identity rather than using the PostgreSQL superuser
+- the first agent has its own role and database
+- the first agent role has no elevated PostgreSQL attributes
+
+The initial memory schema is intentionally structured and simple. Vector search will be added later rather than introducing a separate vector database at this stage.
+
+## 2026-09-24 — First agent memory validation
+
+The first agent database path was validated end to end:
+
+```text
+agent credential
+    -> internal Podman network
+    -> PostgreSQL
+    -> agent-owned memory table
+```
+
+A temporary container authenticated using the agent credential, inserted a structured memory record, and successfully read it back.
+
+This proves the first per-agent persistence boundary before deploying a real agent process.
+
+
+## 2026-09-24 — First agent identity: Birdynator
+
+The generic first-agent identity was renamed to **Birdynator**.
+
+Purpose:
+
+> A long-term personal bird analyst that builds continuity across observations, environmental data, analysis, and time.
+
+Technical naming:
+
+```text
+display name: Birdynator
+slug:         birdynator
+container:    agent-birdynator
+database:     birdynator
+DB role:      birdynator
+DB secret:    birdynator-db-password
+```
+
+The PostgreSQL role, database, and local/Podman credential naming were updated to match. Birdynator retains ownership of the existing memory table and has no elevated PostgreSQL privileges.
+
+## 2026-09-24 — pgvector semantic-memory foundation
+
+The PostgreSQL service image was changed from the standard PostgreSQL 17 image to the pgvector PostgreSQL 17 image while reusing the existing persistent Podman volume.
+
+Validation confirmed that the existing Birdynator memory record survived the image change.
+
+The `vector` extension is enabled in the Birdynator database:
+
+```text
+pgvector 0.8.6
+```
+
+The memory table now includes:
+
+- `embedding vector(384)`
+- HNSW index using `vector_cosine_ops`
+
+The 384-dimensional shape is intended for a small local sentence-transformer embedding model. The embedding service itself is the next step.
+
+## 2026-09-24 — Agent memory snapshot
+
+Snapshot:
+
+```text
+baseline-agent-memory
+```
+
+This snapshot marks the first complete agent persistence milestone: rootless Podman runtime, isolated service network, PostgreSQL-backed per-agent memory, and verified Birdynator database identity.
+
+
+## 2026-09-24 — Verified logical database recovery
+
+The PostgreSQL backup workflow was tested by restoring the latest Birdynator dump into a temporary database.
+
+Validation confirmed:
+
+- the existing memory record was recovered
+- the model-aware `memory_embeddings` table was present
+- pgvector objects restored successfully under the PostgreSQL administrative recovery role
+- the temporary recovery database was removed after validation
+
+Decision: snapshots remain useful recovery checkpoints, but Birdynator also requires logical PostgreSQL backups with tested restore procedures.
+
+The long-term backup target should live outside the AI Nexus VM and outside the agent runtime's normal write boundary.
+
+
+## 2026-09-24 — Controlled OpenAI egress
+
+Birdynator does not receive direct general Internet access.
+
+OpenAI API traffic uses a dedicated CONNECT proxy that:
+
+- allows only the approved OpenAI API destination on TCP/443
+- preserves end-to-end TLS
+- is isolated from the agent-memory database network
+- publishes no host port
+
+This preserves useful cloud reasoning without turning Internet access into an implicit agent capability.
+
+## 2026-09-24 — BirdNET remains authoritative source data
+
+The BirdNET monitoring PostgreSQL database remains the source of truth for detections, hourly activity, species activity, and weather.
+
+Decision:
+
+- do not copy raw BirdNET rows into Birdynator memory
+- use a dedicated read-only PostgreSQL role
+- force read-only database sessions
+- provide access through a fixed-destination datasource proxy
+- keep the datasource proxy separate from the agent-memory database network
+
+This gives Birdynator useful source access without granting broad LAN access.
+
+## 2026-09-24 — Recent activity is compared with historical context
+
+The default Birdynator analysis compares the latest 24 hours with the preceding 30-day baseline.
+
+The baseline excludes the recent window.
+
+Historical context includes mean, standard deviation, p10, median, p90, min/max, and sample count where the hourly source fields are numeric. Recent species-by-hour and confidence context are also supplied.
+
+These statistics are descriptive context. The reasoning model is instructed not to equate acoustic detections with bird abundance or infer causation from correlation.
+
+## 2026-09-24 — Persist analyses separately from canonical memory
+
+Successful BirdNET analyses are stored in `analysis_runs` rather than being inserted automatically into canonical memory.
+
+Each run records:
+
+- model
+- analysis parameters
+- source window/reference
+- SHA-256 digest of the exact reasoning context
+- generated analysis text
+- timestamp
+
+This preserves longitudinal analysis history and provenance while keeping observations, interpretations, and durable memory conceptually separate.
+
+## 2026-09-24 — Fast Birdynator development path
+
+Normal Birdynator code iteration uses:
+
+```bash
+make birdynator-update
+```
+
+The workflow applies pending migrations, reuses the cached Python base image by default, rebuilds only Birdynator, restarts it, and verifies its constrained service paths.
+
+A base-image refresh is explicit through `BIRDYNATOR_REFRESH_BASE=1`.
+
+The Birdynator image build also compiles the Python source so syntax failures are caught during the build.
+
+
+## 2026-09-26 — Defer ML-to-Birdynator interface until ML evidence stabilizes
+
+The BirdNET/Infra ML stack is still under active development.
+
+Decision:
+
+- continue developing and validating the ML layer before designing the Birdynator integration contract
+- do not build a dedicated transport layer now; the existing datasource path is sufficient
+- once the useful ML outputs are better established, expose them through a narrow read-only evidence boundary
+- keep Birdynator dependent on stable analytical evidence rather than on model-specific internals, implementation details, or temporary experiment outputs
+
+This preserves independent ML iteration now while keeping a clean future integration point for Birdynator.
+
+## 2026-09-26 — Preserve upstream BirdNET data-quality provenance
+
+The BirdNET/Infra project now has durable hourly station-health evidence derived from BirdNET analysis telemetry and persisted in the authoritative analytical PostgreSQL environment. The collector, historical backfill, and scheduled timer have been runtime-verified.
+
+Decision:
+
+- keep the health collector and health-history ownership in the BirdNET/Infra project
+- do not duplicate station-health collection inside AI Nexus
+- keep the existing Birdynator datasource path read-only
+- when the deferred ML-to-Birdynator evidence boundary is designed, include stable data-quality provenance such as healthy, incomplete, or unknown observation coverage where it materially affects interpretation
+- do not let Birdynator infer that a zero-detection hour proves biological absence when upstream station evidence is incomplete or unknown
+- make no AI Nexus runtime change now; the ML-to-Birdynator interface remains deferred until the useful analytical/ML evidence contract stabilizes
+
+This preserves the separation between authoritative environmental evidence and agent-generated interpretation.
+
+## 2026-09-27 — Make full runtime verification explicit
+
+`make verify` runs the existing foundation, embedding, OpenAI proxy, BirdNET proxy, and Birdynator checks in dependency order and stops at the first failure. It requires the fully deployed runtime and working external capability paths.
+
+`scripts/verify.sh` remains the foundation-only check used by bootstrap. Bootstrap does not deploy all services, so its completion message must not imply that full runtime verification is available on a foundation-only host. No service deployment or security policy changes are part of this cleanup.
+

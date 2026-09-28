@@ -1,0 +1,13 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN useradd --uid 10003 --create-home --shell /usr/sbin/nologin birdnetproxy
+WORKDIR /app
+COPY proxy.py /app/proxy.py
+RUN chown -R birdnetproxy:birdnetproxy /app
+
+USER 10003:10003
+ENTRYPOINT ["python", "/app/proxy.py"]

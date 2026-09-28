@@ -1,0 +1,253 @@
+# Security Baseline
+
+## Scope
+
+This document records the current Debian host hardening baseline for AI Nexus.
+
+OPNsense remains the primary network-policy and egress enforcement point. The host controls below provide defense in depth without duplicating every upstream rule.
+
+## SSH
+
+Current verified policy:
+
+- direct root SSH disabled with `PermitRootLogin no`
+- public-key authentication enabled and verified with a key-only login
+- password authentication intentionally retained and verified as a fallback for the non-root admin account
+- keyboard-interactive authentication disabled
+- only the designated non-root administrative account is allowed through SSH
+- `MaxAuthTries 3`
+- `LoginGraceTime 30`
+- management SSH is reachable only through the WireGuard management network
+
+The password fallback is deliberate. Key authentication remains the normal path while password login is retained as a recovery option.
+
+## nftables
+
+The host firewall is enabled persistently.
+
+Policy:
+
+```text
+input:   default drop
+forward: default drop
+output:  accept
+```
+
+Allowed inbound traffic:
+
+- loopback
+- established/related connections
+- SSH from the WireGuard management network
+- ICMP and ICMPv6 for diagnostics
+
+Outbound filtering remains primarily an OPNsense responsibility. This keeps the host policy small and understandable while preserving centralized egress logging and enforcement.
+
+## Automatic updates
+
+`unattended-upgrades` is enabled.
+
+Current behavior:
+
+- package lists refreshed daily
+- unattended upgrades run daily
+- current Debian release packages are eligible
+- Debian security packages are eligible
+- proposed updates and backports are not enabled automatically
+- automatic reboot is disabled
+
+Reboots remain deliberate maintenance actions.
+
+## Logging
+
+Persistent systemd journal storage is enabled under `/var/log/journal`.
+
+This preserves host logs across reboots.
+
+## Audit
+
+`auditd` and `audispd-plugins` are enabled.
+
+Targeted watches cover:
+
+- SSH configuration
+- sudoers configuration
+- nftables configuration
+- local user/group identity files
+- systemd unit configuration
+
+A test change under `/etc/systemd/system` was successfully recorded with the expected audit key and acting user attribution.
+
+The rules are intentionally small rather than adopting a broad generic compliance profile.
+
+## Rootless runtime audit coverage
+
+The AI Nexus rootless runtime is covered by targeted auditd watches in addition to the host-level security watches.
+
+Verified watches:
+
+- `<ADMIN_HOME>/.config/containers/systemd/` with key `ai_nexus_quadlet`
+- `<PROJECT_ROOT>/config/runtime.local.env` with key `ai_nexus_runtime`
+- `<RUNTIME_ROOT>/secrets/` with key `ai_nexus_secrets`
+
+The Quadlet directory is mode `0700`, the local runtime configuration is mode `0600`, the secrets directory is mode `0700`, and the individual secret source files are mode `0600`.
+
+Audit attribution was verified by creating and deleting a temporary file in the Quadlet directory. auditd recorded both events with the `ai_nexus_quadlet` key and attributed them to the logged-in administrative user rather than only to a privileged helper process.
+
+## Agent container hardening
+
+Birdynator is deployed as a rootless Podman container and is additionally constrained at runtime.
+
+Verified controls:
+
+- container process runs as an unprivileged application user
+- root filesystem is read-only
+- no host ports are published
+- no host devices are passed through
+- PID namespace is private
+- IPC namespace is private
+- seccomp filtering is active
+- effective, permitted, and bounding Linux capability sets are empty
+- `no-new-privileges` is active
+- mounted Birdynator secrets are restricted to UID/GID 10001 with mode `0400`
+- rootless user-namespace mapping is verified; container root maps to the non-root host user and container UIDs map into the subordinate UID range
+- direct Internet access from the agent is blocked
+- OpenAI access is available only through the dedicated allowlist proxy
+- BirdNET datasource access is available only through the dedicated database proxy
+- BirdNET datasource sessions are verified read-only
+
+The verification script checks these properties after deployment so a runtime drift or failed hardening change causes verification to fail rather than being silently accepted.
+
+## Supporting-service hardening
+
+The OpenAI egress proxy has been verified with the same containment profile used for the agent where compatible:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- no attachment to the agent-memory PostgreSQL network
+- outbound TLS reachability retained only through its dedicated egress network and application allowlist
+
+The BirdNET proxy is also verified with the compatible containment profile:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- no attachment to the agent-memory PostgreSQL network
+- fixed-destination PostgreSQL reachability retained through its dedicated egress network
+
+The embedding service is also verified with the compatible containment profile:
+
+- unprivileged application user
+- read-only root filesystem
+- no host ports
+- empty effective, permitted, and bounding Linux capability sets
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- local model remains pinned and offline
+- text-to-vector smoke test passes at 384 dimensions
+
+## PostgreSQL hardening
+
+PostgreSQL retains a writable root filesystem and its normal image entrypoint intentionally so initialization, upgrades, and recovery behavior are not disrupted.
+
+Verified controls for the database runtime:
+
+- rootless Podman lifecycle
+- PostgreSQL server process runs as UID/GID 999
+- data directory remains mode `0700` and owned by UID/GID 999
+- no host port is published
+- internal container network only
+- `no-new-privileges` active
+- seccomp filtering active
+- private IPC namespace
+- superuser password secret mounted root-only with mode `0400`
+- database ownership and Birdynator runtime-role separation remain enforced
+
+These controls were verified after a PostgreSQL restart, migration check, full runtime verification, and fresh logical backup. The writable root filesystem and root-capable image entrypoint are retained deliberately rather than forcing a more aggressive profile that could interfere with PostgreSQL initialization or recovery.
+
+## Proxmox network boundary
+
+The AI Nexus VM network boundary was verified from the Proxmox host.
+
+Verified topology:
+
+- AI Nexus VM has exactly one NIC
+- that NIC is attached only to `vmbr1`
+- `vmbr1` has no physical bridge ports and no IPv4 address on the Proxmox host
+- OPNsense VM is the only other VM attached to `vmbr1`
+- OPNsense connects `vmbr1` to the normal LAN side through its separate `vmbr0` NIC
+- AI Nexus has no direct `vmbr0` attachment and therefore no direct Proxmox bridge path to the normal LAN
+
+This means routed traffic between AI Nexus and other networks must traverse OPNsense rather than bypassing it through the Proxmox host bridge.
+
+## Hypervisor administration
+
+The Proxmox management path is intentionally separated into routine administration and break-glass access.
+
+Verified controls:
+
+- routine administration uses a named non-root PAM account with sudo and Proxmox Administrator permissions
+- SSH key authentication is available for routine administration
+- password authentication remains available for the named administrative account as a fallback
+- direct root SSH is disabled
+- root console and Proxmox WebUI access are retained as break-glass paths
+- the existing administrative session was kept open while new access paths were verified
+
+## Backup boundary
+
+The database and VM recovery path has been verified end to end.
+
+Verified behavior:
+
+- the AI Nexus guest creates a fresh logical PostgreSQL backup immediately before its VM backup
+- the pre-backup action is invoked from the hypervisor through the QEMU Guest Agent rather than through a new network trust path
+- the hook aborts the VM backup if the logical database backup fails
+- the scheduled VM backup writes to external Proxmox backup storage
+- a manual end-to-end backup run verified logical backup creation, guest filesystem freeze/thaw, VM archive creation, retention processing, and successful completion
+- logical PostgreSQL restore testing is maintained separately from whole-VM recovery
+
+No live IP addresses, VM IDs, usernames, job IDs, or environment-specific filesystem paths are required to reproduce this design.
+
+## Final verification
+
+The final hardening audit verified:
+
+- the host exposes only SSH as a listening network service
+- the host firewall uses default-drop input and forward policies
+- SSH is restricted to the management network
+- root SSH is disabled
+- container services do not publish host ports
+- container-only service ports remain internal to the rootless Podman networks
+- the external backup storage is active and the scheduled backup job is enabled
+- the pre-backup database hook is attached to the scheduled VM backup job
+
+## Deployment verification
+
+The Birdynator update workflow installs the current Quadlet definition into the user systemd container directory before reloading systemd and restarting the service. This prevents a code/image update from accidentally leaving an older runtime policy active.
+
+Proxy image builds use the cached pinned Python base image by default. Set `PROXY_REFRESH_BASE=1` when an intentional base-image refresh is required.
+
+## Recovery checkpoint
+
+Snapshot:
+
+```text
+<SECURITY_BASELINE_SNAPSHOT>
+```
+
+Description:
+
+```text
+Hardened Debian baseline with root SSH disabled, nftables host firewall, unattended upgrades, persistent journald, and targeted auditd rules verified.
+```
+
+This snapshot marks the end of the initial OS/security baseline before the agent runtime and container layers are added.

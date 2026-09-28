@@ -1,0 +1,28 @@
+# Safe example only. Do not replace these with live values in the public repo.
+#
+# Copy this file to network.local.yaml for your real environment.
+# network.local.yaml is ignored by Git.
+
+home_lan: "192.168.X.0/24"
+firewall_lan: "192.168.X.X"
+
+wireguard:
+  subnet: "10.X.X.0/24"
+  home_peer: "10.X.X.X/32"
+  away_peer: "10.X.X.Y/32"
+  port: 51820
+
+ai_network:
+  subnet: "10.Y.Y.0/24"
+  gateway: "10.Y.Y.1"
+  host: "10.Y.Y.10"
+
+management:
+  ssh_port: 22
+
+# Never store:
+# - WAN/public endpoint addresses
+# - private keys
+# - pre-shared keys
+# - passwords
+# - API tokens
