@@ -93,3 +93,15 @@ was therefore not evidence that six additional commits still needed publication.
 The same output showed automatically inferred committer attribution. Its live
 value is intentionally omitted here. Configure intentional public attribution
 before future commits; published-metadata remediation remains a separate decision.
+
+
+Documentation commit `f0b58b4` was subsequently pushed successfully; operator
+output confirmed a clean checkout synchronized with `origin/main`. Repository
+hygiene and staged whitespace checks passed before publication. Publication
+succeeded over Ethernet, which does not establish sustained management reliability.
+
+The published documentation commit used no-reply attribution with an accidental
+trailing punctuation typo. The operator confirmed correcting configuration for
+future commits; published metadata was not rewritten. Copy the exact no-reply
+address and check for trailing punctuation before committing. Live attribution
+values are intentionally omitted here.

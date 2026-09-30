@@ -17,7 +17,8 @@ establish sustained reliability of the management connection.
 
 This review uses operator-provided terminal excerpts, available project chat
 excerpts and repository records. Complete early chat history and original packet
-captures were not available for reinspection. Distinguish recorded historical
+captures were not available for reinspection. New September 30 captures were
+inspected directly for the follow-up below. Distinguish recorded historical
 conclusions from raw evidence reproduced in a new investigation.
 
 All names below are symbolic. Keep raw logs, packet captures and configuration
@@ -40,9 +41,44 @@ redaction.
 | Separate failed authentication sequence | Password rejection followed by “Too many authentication failures” | A specific authentication failure; do not merge it with every transport reset |
 | VM reboot, later PC reboot and retries | Access returned at times; no controlled durable resolution | Recovery is not proof of root cause |
 
-The earlier planned next step was to capture outer WireGuard traffic while the
-failure persisted. No completed, correlated result for that step was available
-in the reviewed material.
+The earlier planned outer-WireGuard capture was completed during the September
+30 recurrence; see the follow-up below.
+
+## September 30 paired-capture follow-up
+
+The VM console showed SSH active and port 22 listening while Windows recorded
+connection timeouts before authentication. WireGuard logs showed repeated failed
+handshake attempts and intermittent recovery. This establishes a tunnel-level
+symptom in these incidents, not the cause of every historical SSH reset.
+
+- A healthy firewall capture showed a handshake response and bidirectional
+  encrypted traffic during a successful SSH login.
+- A failing firewall-only capture contained 19 handshake requests, each with a
+  matching response about 0.3–0.5 milliseconds later at that capture point.
+- In the overlap of paired firewall and Windows captures, nine Windows handshake
+  requests reached the firewall and received matching responses there. None of
+  those nine response payloads appeared in the Windows capture. An earlier
+  healthy response did appear in Windows. Packet payload matching accounted for
+  roughly 0.86 seconds of clock offset between the capture points.
+
+The observed gap lies between the firewall virtual LAN capture point and the
+Windows physical-adapter capture point. It does not prove physical transmission
+or identify the bridge, access point, adapter, driver or filtering component
+responsible. Verify capture drops and interface selection before assigning cause.
+Encrypted outer traffic does not explain key-to-password authentication fallback.
+
+The client initially used Wi-Fi, then switched to Ethernet with Wi-Fi disabled
+and the same Home WireGuard path retained. An apparent stall was reported before
+access recovered; Git publication subsequently succeeded over Ethernet. This is
+not proof of sustained wired reliability or that Wi-Fi caused the fault. No paired
+wired-failure capture has yet been reviewed. Timing around Git commands is not
+causal evidence: local identity commands do not contact a remote, and fresh SSH
+attempts also failed before Git commands ran.
+
+Next, capture both the Windows physical adapter and firewall LAN during another
+recurrence, retaining capture-drop statistics and command timestamps. Compare
+exact response payloads across the points. Keep the authorized Home peer and
+isolation policy unchanged; spontaneous recovery is not a demonstrated fix.
 
 ## Distinguish failure classes
 
