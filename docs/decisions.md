@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-09-29 — Birdynator analysis v2 within existing boundaries
+
+Derive selective, deterministic evidence from the existing read-only activity
+and species views, then ask Birdynator for a concise narrative. Observations,
+exploratory correlations, hypotheses and experimental predictions remain separate.
+Use a shared historical cutoff and matching clock-hour daily comparisons to avoid
+future observations and partial-day rank bias. Generated analysis remains in
+`analysis_runs`; questions are not automatically promoted to canonical memory.
+
+No infrastructure, privileges, network paths or Internet allowlists change.
+External enrichment remains disabled. The deferred live ML interface remains
+deferred; optional offline archive replay exercises prediction-surprise derivation
+without adding access to upstream model-specific tables. See
+`docs/birdynator-analysis.md` for the evidence contract and its limitations.
+
 ## 2026-09-23 — Platform scope
 
 AI Nexus is a long-term secure agent execution platform rather than a general-purpose AI VM.

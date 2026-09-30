@@ -1,4 +1,9 @@
 SHELL := /bin/bash
+PYTHON ?= python3
+
+.PHONY: test
+test:
+	@$(PYTHON) -B -m unittest discover -s tests -v
 
 .PHONY: plan bootstrap migrate verify repo-check backup restore-test postgres-harden embedding-build embedding-deploy embedding-verify openai-proxy-build openai-proxy-deploy openai-proxy-verify birdnet-proxy-build birdnet-proxy-deploy birdnet-proxy-verify birdynator-build birdynator-deploy birdynator-update birdynator-verify
 

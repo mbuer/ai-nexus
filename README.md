@@ -33,8 +33,9 @@ Birdynator currently supports:
   - deep: `gpt-5.6-sol`
 - real BirdNET + weather analysis
 - recent-window versus historical-baseline comparison
-- historical mean, standard deviation, percentiles, min/max, and sample counts
-- recent species-by-hour and confidence context
+- deterministic daily ranks, species novelty/returns, weather correlations, timing shifts and multi-day trends
+- narrative-first analysis with separate observations, correlations, hypotheses and optional archive ML surprises
+- cutoff-based historical replay and evidence-only inspection without an API call
 - persisted analysis history with source-window provenance and a source-context digest
 
 Default BirdNET analysis compares the latest 24 hours with the preceding 30-day baseline.

@@ -3,15 +3,12 @@ import argparse
 import hashlib
 import json
 import os
-import statistics
 import time
 from pathlib import Path
-from decimal import Decimal
-from collections import defaultdict
-from numbers import Number
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
+from evidence import VERSION, PROMPT_VERSION, build_evidence, analysis_payload, timestamp
 
 
 DB_HOST = os.getenv("BIRDYNATOR_DB_HOST", "ai-nexus-postgres")
@@ -301,194 +298,48 @@ def rows_as_dicts(cur):
     return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
-def percentile(values, fraction):
-    ordered = sorted(values)
-    if not ordered:
-        return None
-    if len(ordered) == 1:
-        return ordered[0]
-    pos = (len(ordered) - 1) * fraction
-    lower = int(pos)
-    upper = min(lower + 1, len(ordered) - 1)
-    weight = pos - lower
-    return ordered[lower] * (1 - weight) + ordered[upper] * weight
-
-
-def numeric_summary(values):
-    if not values:
-        return {}
-    return {
-        "avg": statistics.fmean(values),
-        "stddev": statistics.stdev(values) if len(values) > 1 else 0.0,
-        "p10": percentile(values, 0.10),
-        "p50": percentile(values, 0.50),
-        "p90": percentile(values, 0.90),
-        "min": min(values),
-        "max": max(values),
-    }
-
-
-def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25):
+def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25, through=None):
+    # top_species is retained for CLI compatibility; evidence must include rare species.
+    if not 1 <= recent_hours <= 168 or not 1 <= baseline_days <= 366:
+        raise ValueError("hours must be 1..168 and baseline_days 1..366")
     with connect_birdnet() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT MAX(hour_local) FROM bird_activity_hourly")
-            latest_hour = cur.fetchone()[0]
+            # Both existing views share a stable, read-only snapshot and cutoff.
+            cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            if through is None:
+                cur.execute("SELECT MAX(hour_local) FROM bird_activity_hourly")
+                latest_hour = cur.fetchone()[0]
+            else:
+                latest_hour = timestamp(through)
             if latest_hour is None:
                 raise RuntimeError("bird_activity_hourly contains no data")
-
+            if latest_hour.tzinfo is not None or latest_hour.minute or latest_hour.second or latest_hour.microsecond:
+                raise ValueError("through must be a naive local timestamp aligned to an hour")
+            params = (latest_hour, baseline_days, recent_hours, latest_hour)
             cur.execute(
                 """
-                SELECT *
-                FROM bird_activity_hourly
-                WHERE hour_local > %s - (%s * interval '1 hour')
-                  AND hour_local <= %s
-                ORDER BY hour_local
-                """,
-                (latest_hour, recent_hours, latest_hour),
-            )
-            recent_activity = rows_as_dicts(cur)
-
-            cur.execute(
-                """
-                SELECT *
-                FROM bird_activity_hourly
+                SELECT * FROM bird_activity_hourly
                 WHERE hour_local > %s - (%s * interval '1 day') - (%s * interval '1 hour')
-                  AND hour_local <= %s - (%s * interval '1 hour')
-                ORDER BY hour_local
-                """,
-                (latest_hour, baseline_days, recent_hours, latest_hour, recent_hours),
-            )
-            baseline_activity = rows_as_dicts(cur)
-
-            cur.execute(
-                """
-                WITH bounds AS (
-                    SELECT MAX(hour_local) AS latest_hour
-                    FROM bird_species_hourly
-                ),
-                species_stats AS (
-                    SELECT
-                        species,
-                        species_latin,
-                        SUM(detection_count) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour
-                        ) AS recent_detections,
-                        COUNT(*) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour
-                              AND present = 1
-                        ) AS recent_present_hours,
-                        AVG(detection_count::numeric) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 day') - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour - (%s * interval '1 hour')
-                        ) AS baseline_detections_per_hour,
-                        AVG(present::numeric) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 day') - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour - (%s * interval '1 hour')
-                        ) AS baseline_presence_rate,
-                        AVG(avg_confidence) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour
-                              AND present = 1
-                        ) AS recent_avg_confidence,
-                        MAX(max_confidence) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour
-                              AND present = 1
-                        ) AS recent_max_confidence,
-                        AVG(avg_confidence) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 day') - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour - (%s * interval '1 hour')
-                              AND present = 1
-                        ) AS baseline_avg_confidence,
-                        MAX(max_confidence) FILTER (
-                            WHERE hour_local > latest_hour - (%s * interval '1 day') - (%s * interval '1 hour')
-                              AND hour_local <= latest_hour - (%s * interval '1 hour')
-                        ) AS baseline_max_confidence
-                    FROM bird_species_hourly, bounds
-                    GROUP BY species, species_latin, latest_hour
-                )
-                SELECT *
-                FROM species_stats
-                WHERE COALESCE(recent_detections, 0) > 0
-                   OR COALESCE(baseline_presence_rate, 0) > 0
-                ORDER BY COALESCE(recent_detections, 0) DESC,
-                         COALESCE(baseline_presence_rate, 0) DESC
-                LIMIT %s
-                """,
-                (
-                    recent_hours,
-                    recent_hours,
-                    baseline_days, recent_hours, recent_hours,
-                    baseline_days, recent_hours, recent_hours,
-                    recent_hours,
-                    recent_hours,
-                    baseline_days, recent_hours, recent_hours,
-                    baseline_days, recent_hours, recent_hours,
-                    top_species,
-                ),
-            )
-            species_comparison = rows_as_dicts(cur)
-
-            cur.execute(
-                """
-                SELECT hour_local, species, species_latin, detection_count, present,
-                       avg_confidence, max_confidence
-                FROM bird_species_hourly
-                WHERE hour_local > %s - (%s * interval '1 hour')
                   AND hour_local <= %s
-                  AND present = 1
-                ORDER BY hour_local, detection_count DESC, species
-                """,
-                (latest_hour, recent_hours, latest_hour),
-            )
-            recent_species_by_hour = rows_as_dicts(cur)
+                ORDER BY hour_local
+                """, params)
+            activity = rows_as_dicts(cur)
+            cur.execute(
+                """
+                SELECT * FROM bird_species_hourly
+                WHERE hour_local > %s - (%s * interval '1 day') - (%s * interval '1 hour')
+                  AND hour_local <= %s AND present = 1
+                ORDER BY hour_local, species
+                """, params)
+            species = rows_as_dicts(cur)
+    return build_evidence(activity, species, latest_hour, recent_hours, baseline_days)
 
-    grouped = defaultdict(list)
-    for row in baseline_activity:
-        hour = row.get("hour_local")
-        if hour is not None:
-            grouped[hour.hour].append(row)
-
-    baseline_by_hour = []
-    for hour in sorted(grouped):
-        rows = grouped[hour]
-        summary = {"hour_of_day": hour, "samples": len(rows)}
-        keys = set().union(*(row.keys() for row in rows))
-        for key in sorted(keys):
-            if key == "hour_local":
-                continue
-            values = []
-            for row in rows:
-                value = row.get(key)
-                if isinstance(value, bool) or value is None:
-                    continue
-                if isinstance(value, (Number, Decimal)):
-                    values.append(float(value))
-            if values:
-                for stat, value in numeric_summary(values).items():
-                    summary[f"{stat}_{key}"] = value
-        baseline_by_hour.append(summary)
-
-    return {
-        "window": {
-            "latest_hour": latest_hour,
-            "recent_hours": recent_hours,
-            "baseline_days": baseline_days,
-            "baseline_excludes_recent_window": True,
-        },
-        "recent_activity_hourly": recent_activity,
-        "baseline_activity_by_hour_of_day": baseline_by_hour,
-        "species_comparison": species_comparison,
-        "recent_species_by_hour": recent_species_by_hour,
-    }
 
 def save_analysis(dataset, args, model, result_text, source_digest):
     window = dataset["window"]
     source_ref = (
         f"birdnet:bird_activity_hourly+bird_species_hourly:"
-        f"through={window['latest_hour'].isoformat()}:"
+        f"through={window['latest_hour']}:"
         f"recent={window['recent_hours']}h:baseline={window['baseline_days']}d"
     )
     parameters = {
@@ -496,6 +347,9 @@ def save_analysis(dataset, args, model, result_text, source_digest):
         "baseline_days": args.baseline_days,
         "top_species": args.top_species,
         "tier": args.tier,
+        "evidence_version": VERSION,
+        "prompt_version": PROMPT_VERSION,
+        "through": getattr(args, "through", None),
     }
     with connect() as conn:
         with conn.cursor() as cur:
@@ -543,37 +397,14 @@ def analysis_history(args):
 
 
 def analyze_birdnet(args):
-    dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species)
-
-    def encode(value):
-        if isinstance(value, Decimal):
-            return float(value)
-        if hasattr(value, "isoformat"):
-            return value.isoformat()
-        return str(value)
-
-    context = json.dumps(dataset, default=encode, separators=(",", ":"))
-    source_digest = hashlib.sha256(context.encode()).hexdigest()
+    dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species, args.through)
     model = model_for_tier(args.tier)
-
-    payload = json.dumps({
-        "model": model,
-        "store": False,
-        "instructions": (
-            "You are Birdynator, a careful bird-activity analyst. "
-            "Analyze only the supplied BirdNET source data. Treat detections and weather as observations, "
-            "not conclusions. Separate observations from hypotheses. Do not claim causation from correlation. "
-            "Use the supplied historical variance and percentiles to distinguish ordinary variation from stronger departures. "
-            "Use recent species-by-hour and confidence fields when assessing peaks and isolated detections. "
-            "Call out data limitations, sparse hours, confidence limitations, and anything that needs more history."
-        ),
-        "input": (
-            "Compare the recent BirdNET activity window against the historical baseline supplied with it. "
-            "Focus on deviations from the baseline, notable species activity, time-of-day patterns, weather context, and anything unusual. "
-            "Treat the baseline as descriptive history, not proof of expected behavior. "
-            f"Source data JSON:\n{context}"
-        ),
-    }).encode()
+    request_payload, context = analysis_payload(dataset, model)
+    source_digest = hashlib.sha256(context.encode()).hexdigest()
+    if args.evidence_only:
+        print(json.dumps(dataset, indent=2, sort_keys=True))
+        return
+    payload = json.dumps(request_payload).encode()
 
     req = Request(
         OPENAI_API_URL,
@@ -628,7 +459,11 @@ def main():
     analyze_parser = sub.add_parser("analyze-birdnet")
     analyze_parser.add_argument("--hours", type=int, default=24)
     analyze_parser.add_argument("--baseline-days", type=int, default=30)
-    analyze_parser.add_argument("--top-species", type=int, default=25)
+    analyze_parser.add_argument("--top-species", type=int, default=25,
+                                help="compatibility option; v2 uses all species")
+    analyze_parser.add_argument("--through", help="historical local hour, e.g. 2026-09-24T23:00:00")
+    analyze_parser.add_argument("--evidence-only", action="store_true",
+                                help="print deterministic evidence without OpenAI or persistence")
     analyze_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
 
     history_parser = sub.add_parser("analysis-history")
