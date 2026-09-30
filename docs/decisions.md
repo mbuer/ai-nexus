@@ -433,3 +433,20 @@ This preserves the separation between authoritative environmental evidence and a
 
 `scripts/verify.sh` remains the foundation-only check used by bootstrap. Bootstrap does not deploy all services, so its completion message must not imply that full runtime verification is available on a foundation-only host. No service deployment or security policy changes are part of this cleanup.
 
+
+## 2026-09-30 — Record verified v2 deployment and unresolved management reliability
+
+Operator-provided logs confirm evidence v2.1 and narrative prompt v2.2 deployed,
+18 regression tests and repository hygiene passed, and full runtime verification
+passed. Historical analysis completed through the controlled OpenAI path and was
+persisted separately from canonical memory. Public commit `798cad6` was pushed
+successfully. Generated tie wording remains a known interpretation limitation;
+see [Birdynator analysis](birdynator-analysis.md).
+
+Management SSH resets remain unresolved. Preserve the existing isolation and
+separate Home/Away peers; resume targeted evidence collection when the failure
+recurs. Passing application/security checks is not a management reliability fix.
+[SSH troubleshooting](ssh-troubleshooting.md) is the current investigation record;
+the September 23/24 document remains historical evidence. Raw logs/captures and
+private Git attribution must not be copied into public documentation. See
+[Repository workflow](repository-workflow.md) for publication checks.

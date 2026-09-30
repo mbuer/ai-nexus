@@ -4,6 +4,8 @@
 
 Birdynator is the first AI Nexus agent. It is a long-term personal bird analyst that combines authoritative BirdNET observations with local memory and controlled OpenAI reasoning.
 
+The `analyze-birdnet` command currently uses SQL-derived evidence directly; it does not retrieve canonical memory or call the embedding service. Memory-assisted questions use the separate `ask` command.
+
 The design deliberately separates three kinds of state:
 
 1. **Source data** — BirdNET detections, hourly activity, species activity, and weather remain in the BirdNET PostgreSQL database.
@@ -97,6 +99,8 @@ window remains configurable and is excluded from the historical rank/correlation
 baseline. Multi-day recent windows still describe the latest calendar day in
 `today`; novelty spans the entire recent window.
 
+The `ties` field counts all comparable days equal to the reported value, including the current day: `ties: 1` means unique, not tied with another day.
+
 V2.1 adds temperature `rank_asc` (1 = coolest), `rank_desc` (1 = warmest),
 `minimum_f` and `maximum_f`. The prompt requires an explicit rank for the same
 metric before using a historical superlative; a correlation does not establish
@@ -129,6 +133,25 @@ follow-up question. Shared identification caveats appear once; middle-ranking
 temperature ordinals and repeated species statistics are discouraged.
 There is no hourly inventory or repeated generic caveat. The explore
 section uses local observations only: no web enrichment, external facts or links.
+
+### Deployment verification and known output limitation
+
+Operator-provided September 2026 logs confirm evidence v2.1 / prompt v2.2 built,
+deployed and ran successfully. All 18 offline tests, `make repo-check`, Birdynator
+update verification and full `make verify` passed. The source connection remained
+read-only and direct agent Internet egress remained blocked. A historical model
+analysis completed and was persisted in `analysis_runs`.
+
+The live September 24 replay had 28 comparable days, while the bounded archive
+replay had 25. Different source coverage explains the sample-size difference;
+do not present the archive as an identical historical database snapshot.
+
+The earlier unsupported “coolest day” claim was absent in the v2.1/v2.2 reruns
+after explicit temperature ranks were added. However, the v2.2 output described
+diversity and humidity as tied for first despite `ties: 1` for both. This wording
+error remains open. Tests validate derivation and request construction, not every
+claim in generated prose; there is no deterministic prose validator. No new
+prompt correction or infrastructure change is claimed by this documentation update.
 
 ### Historical replay and inspection
 
@@ -196,6 +219,8 @@ This preserves provenance without duplicating the raw BirdNET dataset.
 V2 parameters include evidence and prompt versions and the requested cutoff.
 The source digest covers the exact canonical JSON used in the request. Preserve
 the export and code revision when exact evidence reproduction is needed.
+
+It does not hash the instructions, model response or entire request. The same evidence can therefore retain its digest across prompt revisions; distinguish runs using the stored prompt/evidence versions, model and parameters as well.
 
 List recent analyses:
 

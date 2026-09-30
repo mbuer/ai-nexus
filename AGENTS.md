@@ -49,6 +49,8 @@ AI_HOST
 
 Use `config/network.example.yaml` for safe examples and keep real values in the ignored `config/network.local.yaml`.
 
+Review Git author/committer attribution as well as file contents before publishing; automatic identities can expose private hostnames. Keep raw diagnostic logs and captures outside the public checkout. See `docs/repository-workflow.md`.
+
 ## Current architecture
 
 AI Nexus has one active network path through the isolated Proxmox bridge `vmbr1`.
@@ -71,7 +73,7 @@ Before architectural, security, networking, database, ML-integration, or other c
 
 1. Read `docs/decisions.md` first and treat recorded decisions as current architectural context unless deliberately superseded by a newer documented decision.
 2. Read the relevant architecture and subsystem documentation before proposing changes.
-3. For networking or firewall work, read `docs/architecture.md`, `docs/network.md`, and check `docs/troubleshooting-2026-09-23.md` before repeating past experiments.
+3. For networking or firewall work, read `docs/architecture.md`, `docs/network.md`, and `docs/ssh-troubleshooting.md`; consult `docs/troubleshooting-2026-09-23.md` for historical context before repeating past experiments.
 4. Prefer the smallest reversible change.
 5. Validate with concrete tests.
 6. Update documentation when architecture or operating procedures change.
@@ -100,6 +102,7 @@ Avoid stacking multiple configuration changes before validating the previous one
 ## Validation commands
 
 - `make repo-check`: repository syntax and public-repository hygiene.
+- `make test`: offline Birdynator evidence and request/persistence-boundary regression tests.
 - `make verify`: full deployed runtime (foundation, embedding, both proxies, then Birdynator); stops at the first failure and requires live OpenAI/BirdNET access.
 - `bash scripts/verify.sh`: foundation-only verification after bootstrap.
 - `make restore-test`: restore the latest logical dump into a temporary database and validate it.

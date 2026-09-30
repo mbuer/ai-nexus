@@ -76,21 +76,24 @@ The default analysis compares:
 - latest 24 hours
 - preceding 30-day baseline
 
-The reasoning context includes:
+The v2 reasoning context separates measured observations, exploratory correlations,
+unconfirmed hypotheses and optional experimental predictions. Deterministic
+derivation provides daily ranks, new/returning species, unusual clock hours,
+sunrise-relative shifts, multi-day trends and weather relationships. Calendar-day
+comparisons use matching clock hours and report actual sample sizes.
 
-- hourly activity/weather
-- historical mean
-- historical standard deviation
-- p10 / median / p90
-- minimum / maximum
-- sample count
-- recent species-by-hour activity
-- recent average/max confidence
-- historical species presence/detection/confidence context
+The narrative develops one main story and at most two additional discoveries,
+with a concrete question to revisit and a locally selected bird to explore.
+Evidence-rich days target 400-600 words; quiet days can be shorter. Historical
+replay uses an explicit cutoff, and evidence-only inspection makes no model call.
+External enrichment and live ML integration remain deferred; archive replay can
+optionally inspect experimental forecasts.
 
-This lets Birdynator ask a more useful question than “what happened today?”:
-
-> What changed relative to what is normally observed at this site and time of day?
+Evidence v2.1 and prompt v2.2 were deployed successfully. Eighteen regression tests,
+repository checks and full runtime verification passed in operator-provided logs.
+The historical model run persisted successfully, but generated prose still
+requires review: it incorrectly described unique first-place ranks as tied.
+This is a model-output limitation, not a failure of the computed rankings.
 
 Read:
 
@@ -160,6 +163,8 @@ Run the full runtime verification:
 make verify
 ```
 
+For offline evidence tests and repository hygiene, run `make test` and `make repo-check`. See [Repository workflow](repository-workflow.md) before publishing changes from a deployment or review checkout.
+
 Test database recovery:
 
 ```bash
@@ -193,3 +198,13 @@ That separation is the core of AI Nexus.
 6. [Backup and recovery](backup-recovery.md)
 7. [Network](network.md)
 8. [Security baseline](security-baseline.md)
+9. [SSH troubleshooting](ssh-troubleshooting.md)
+10. [Repository workflow](repository-workflow.md)
+
+## Open management reliability issue
+
+Intermittent SSH resets remain unresolved despite periods of normal operation.
+Separate Home/Away peers and the existing network isolation remain the intended
+architecture. Preserve and correlate a failing connection before changing settings;
+the [investigation record](ssh-troubleshooting.md) distinguishes past experiments,
+observations, hypotheses and the next evidence to collect.

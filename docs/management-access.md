@@ -4,6 +4,8 @@
 
 AI Nexus management enters through WireGuard rather than directly from the home LAN.
 
+For the unresolved intermittent reset investigation, prior experiments and the failure-capture procedure, see [SSH troubleshooting](ssh-troubleshooting.md).
+
 This public document intentionally omits live environment addresses.
 
 ## Symbolic addresses
@@ -142,6 +144,8 @@ Expected when healthy:
 - session source is the dedicated Home peer
 
 If SSH resets or times out, do not immediately restart the tunnel. Preserve the failing state long enough to compare WireGuard handshake age, transfer counters, and the OPNsense UDP/51820 capture.
+
+Use the actual endpoint-facing interface for the active profile. A successful login or refreshing handshake is not proof of sustained SSH reliability. The September 2026 recurrence remains unresolved; defer configuration changes while healthy and follow the [recurrence procedure](ssh-troubleshooting.md).
 
 ## Quick troubleshooting
 

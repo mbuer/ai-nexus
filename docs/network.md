@@ -189,6 +189,8 @@ Confirmed:
 - GitHub SSH over TCP/443
 - AI Nexus has no direct LAN NIC
 
+The checks above establish the intended path when healthy. Intermittent management SSH resets remain unresolved; see [SSH troubleshooting](ssh-troubleshooting.md) for the current evidence and recurrence procedure.
+
 ## Public configuration pattern
 
 Safe example values live in:
