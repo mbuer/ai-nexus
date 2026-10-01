@@ -21,6 +21,8 @@ Current verified policy:
 
 The password fallback is deliberate. Key authentication remains the normal path while password login is retained as a recovery option.
 
+These verified controls do not establish continuous management reliability. Intermittent SSH resets remain under investigation; the documented authentication limits are candidates only for login-stage failures, not a diagnosis of established session loss. See [SSH troubleshooting](ssh-troubleshooting.md).
+
 ## nftables
 
 The host firewall is enabled persistently.

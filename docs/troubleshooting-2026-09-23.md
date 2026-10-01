@@ -1,5 +1,7 @@
 # Network Troubleshooting — 2026-09-23/24
 
+Historical record: for current status and the next investigation procedure, see [SSH troubleshooting](ssh-troubleshooting.md). The “ruled out” conclusions below describe the earlier tests, particularly the abandoned direct-LAN path; they do not conclusively exclude all related failure modes on the later WireGuard path.
+
 ## Summary
 
 Two separate management-path problems were investigated:

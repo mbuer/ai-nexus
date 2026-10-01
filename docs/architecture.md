@@ -47,8 +47,8 @@ Exact live IP addresses are intentionally omitted from this public repository.
 
 ## AI Nexus VM
 
-- Debian 13.7
-- kernel `6.12.107+deb13-amd64`
+- Debian 13
+- Debian-packaged Linux 6.12 kernel series (patch version changes with security updates)
 - 4 vCPU
 - 8 GB RAM
 - 32 GB disk

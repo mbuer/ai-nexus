@@ -33,13 +33,16 @@ Birdynator currently supports:
   - deep: `gpt-5.6-sol`
 - real BirdNET + weather analysis
 - recent-window versus historical-baseline comparison
-- historical mean, standard deviation, percentiles, min/max, and sample counts
-- recent species-by-hour and confidence context
+- deterministic daily ranks, species novelty/returns, weather correlations, timing shifts and multi-day trends
+- narrative-first analysis with separate observations, correlations, hypotheses and optional archive ML surprises
+- cutoff-based historical replay and evidence-only inspection without an API call
 - persisted analysis history with source-window provenance and a source-context digest
 
 Default BirdNET analysis compares the latest 24 hours with the preceding 30-day baseline.
 
 See [Birdynator analysis](docs/birdynator-analysis.md).
+
+Evidence v2.1 and narrative prompt v2.2 were deployed and runtime-verified in September 2026. Generated prose remains reviewable interpretation; the documented tie-wording limitation is not fixed by passing infrastructure checks.
 
 ## Security model
 
@@ -114,6 +117,7 @@ make plan
 make bootstrap
 make verify
 make repo-check
+make test
 make backup
 make restore-test
 ```
@@ -180,6 +184,8 @@ Never commit:
 
 Use symbolic names in documentation and keep environment-specific values in ignored local configuration.
 
+Review author/committer metadata before publishing, and keep raw troubleshooting logs and captures out of the checkout. See [Repository workflow](docs/repository-workflow.md) for transfer, line-ending, attribution and publication checks.
+
 ## Start here
 
 For a compact overview of the project and the important reading order, see [Executive summary](docs/executive-summary.md).
@@ -192,6 +198,9 @@ Detailed references:
 - [Reproducible runtime](docs/reproducible-runtime.md)
 - [Decision log](docs/decisions.md)
 - [Network](docs/network.md)
+- [Management access](docs/management-access.md)
+- [SSH troubleshooting](docs/ssh-troubleshooting.md) — current findings and recurrence procedure
+- [Repository workflow](docs/repository-workflow.md)
 - [Security baseline](docs/security-baseline.md)
 - [Backup and recovery](docs/backup-recovery.md)
 - [Break-glass recovery](docs/break-glass-recovery.md)
