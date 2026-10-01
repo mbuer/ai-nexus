@@ -145,7 +145,7 @@ Expected when healthy:
 
 If SSH resets or times out, do not immediately restart the tunnel. Preserve the failing state long enough to compare WireGuard handshake age, transfer counters, and the OPNsense UDP/51820 capture.
 
-Use the actual endpoint-facing interface for the active profile. A successful login or refreshing handshake is not proof of sustained SSH reliability. The September 2026 recurrence remains unresolved; defer configuration changes while healthy and follow the [recurrence procedure](ssh-troubleshooting.md).
+Use the actual endpoint-facing interface for the active profile. A successful login or refreshing handshake is not proof of sustained SSH reliability. A September 30 per-rule correction now prevents gateway-forced replies for Home WireGuard; direct return traffic was capture-verified. Sustained reliability remains under observation. See the [correction and recurrence procedure](ssh-troubleshooting.md).
 
 ## Quick troubleshooting
 
@@ -174,3 +174,8 @@ hostname ssh.github.com
 port 443
 user git
 ```
+
+Home WireGuard uses a LAN-network to LAN-address UDP/51820 pass rule above the
+broad LAN allow, with Disable reply-to checked. Preserve this order and verify
+the loaded rule has no reply-to clause; Gateway=None alone is insufficient.
+Existing states may retain old routing behavior until the affected state is renewed.

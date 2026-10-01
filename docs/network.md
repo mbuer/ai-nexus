@@ -243,3 +243,12 @@ Birdynator -> BirdNET fixed-destination proxy -> BIRDNET_DB_HOST:5432
 The upstream OPNsense policy permits only the intended AI-host-to-datasource PostgreSQL path, and PostgreSQL separately enforces the dedicated read-only login.
 
 Live addresses remain in ignored local configuration and are not documented here.
+
+## Home WireGuard return path
+
+The DHCP-configured LAN generated reply-to via HOME_ROUTER, including for local
+WireGuard clients. A narrow LAN-network to LAN-address IPv4 UDP/51820 quick pass
+rule now disables reply-to before the broad LAN allow. The default route, Away
+path and AI isolation remain unchanged. Loaded-rule inspection and a short capture
+verified direct client replies; long-term stability remains under observation.
+See [SSH troubleshooting](ssh-troubleshooting.md) for evidence and rollback.

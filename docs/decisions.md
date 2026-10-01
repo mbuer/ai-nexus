@@ -450,3 +450,34 @@ recurs. Passing application/security checks is not a management reliability fix.
 the September 23/24 document remains historical evidence. Raw logs/captures and
 private Git attribution must not be copied into public documentation. See
 [Repository workflow](repository-workflow.md) for publication checks.
+
+## 2026-09-30 — Correct Home WireGuard return path narrowly
+
+Loaded firewall rules confirmed automatic reply-to via HOME_ROUTER for local
+WireGuard traffic. Apply a LAN-network to LAN-address IPv4 UDP/51820 quick pass
+rule before the broad LAN allow with Disable reply-to enabled. Preserve DHCP,
+the default gateway, other return-path controls and all AI isolation boundaries.
+A post-change capture verified direct client replies and two handshake responses
+over approximately five minutes; sustained reliability is not yet established.
+This supersedes the earlier wait-for-recurrence guidance for this specific
+mechanism. See [SSH troubleshooting](ssh-troubleshooting.md) for the evidence,
+state-renewal procedure and bounded rollback.
+
+## 2026-09-30 — Trial optional provider-hosted species context
+
+The operator authorized selectively comparing BirdNET findings with trusted online
+species references. Supersede the earlier no-enrichment scope only for an explicit
+`--web-enrichment` trial. Use the existing OpenAI Responses connection with hosted
+web search restricted to Cornell All About Birds, eBird and English Wikipedia,
+with a two-tool-call cap and optional model selection of useful research. Keep
+external context and source provenance separate from deterministic SQL evidence.
+No agent network, firewall, datasource or proxy destination expansion is required.
+The API provider enforces search-domain filtering; query minimization remains a
+prompt instruction, and live model support and report quality remain to be tested.
+Default reports stay local-evidence only. See [Birdynator analysis](birdynator-analysis.md).
+
+
+The initial trial returned no search calls with automatic tool choice. On operator
+approval, enrichment policy v2 requires a source check when explicitly enabled,
+while retaining optional inclusion, the two-call cap and the same source domains.
+Default runs do not research. Required-search live validation remains pending.

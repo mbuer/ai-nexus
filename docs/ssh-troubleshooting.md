@@ -2,10 +2,11 @@
 
 ## Current status
 
-As of the September 30, 2026 review, intermittent management SSH resets remain
-unresolved. Connections currently work again; no durable fix or root cause has
-been demonstrated. Investigation resumes on recurrence, without speculative
-configuration changes while the path is healthy.
+On September 30, 2026, active firewall rules confirmed a gateway-forced return
+path for Home WireGuard. A narrow per-rule exception was applied and a subsequent
+capture verified direct replies to the client. This corrects an observed routing
+problem; sustained reliability and attribution of every historical reset remain
+unverified. Preserve the correction and collect evidence if failures recur.
 
 This is the current investigation record and recurrence procedure. See
 [Management access](management-access.md) for the intended configuration and
@@ -79,6 +80,74 @@ Next, capture both the Windows physical adapter and firewall LAN during another
 recurrence, retaining capture-drop statistics and command timestamps. Compare
 exact response payloads across the points. Keep the authorized Home peer and
 isolation policy unchanged; spontaneous recovery is not a demonstrated fix.
+
+## September 30 return-path correction
+
+### Evidence and interpretation
+
+The router vendor MAC was identified as HOME_ROUTER, not an unknown client.
+Earlier failed handshake requests arrived with the client Wi-Fi source MAC, while
+firewall replies targeted HOME_ROUTER and were absent from the paired Windows
+capture. A later working capture used HOME_ROUTER's MAC in both directions.
+Thus the router MAC alone did not distinguish success from failure.
+
+Windows showed a directly connected route and the correct firewall neighbor MAC.
+The firewall routing table also showed HOME_LAN directly connected. Proxmox shell
+inspection showed its Wi-Fi down with no address; the LAN bridge had one physical
+dock/Ethernet uplink. These observations did not establish a dock or Wi-Fi fault.
+Earlier reported client Ethernet testing is inconclusive: the later adapter list
+showed a virtual VPN adapter and the physical Ethernet adapter disconnected.
+
+The decisive configuration evidence was the loaded packet-filter rules: both the
+broad LAN allow rule and the existing WireGuard listener rule contained
+`reply-to (LAN_INTERFACE HOME_ROUTER)`. LAN receives configuration through DHCP.
+The rule editor's Gateway=None did not exclude an automatically generated reply-to.
+This explains the gateway-directed replies despite a connected subnet route.
+It is a strong explanation for the captured failure pattern, not proof that every
+historical reset or key/password fallback had this cause. Why the router forwarded
+some exchanges and not others remains unverified.
+
+### Applied narrow change
+
+A new rule, Home WireGuard direct replies, was placed before the broad LAN allow:
+
+| Setting | Value |
+| --- | --- |
+| Interface / direction / action | LAN / in / pass |
+| Quick | Enabled |
+| Version / protocol | IPv4 / UDP |
+| Source | LAN network; any source port |
+| Destination | LAN address; listener port 51820 |
+| Gateway / explicit reply-to target | None / None |
+| Disable reply-to | Checked |
+| State handling | Keep state |
+
+The operator applied the rule and supplied loaded-rule output showing it before
+the broad allow, with no reply-to clause. Existing broader rules retained theirs.
+The instructed transition deactivated Home WireGuard, removed only the matching
+Home UDP state if still present, and reactivated the tunnel; reconnection was
+confirmed. No global state flush, DHCP/default-gateway change, global reply-to
+disable, direct-LAN AI access or widened agent Internet access was required.
+The Home source scope leaves the external Away path outside this exception.
+
+### Post-change validation and remaining work
+
+A directly inspected capture contained 1,000 packets over about 4 minutes 57 seconds:
+527 client-to-firewall and 473 firewall-to-client. All frames used the client and
+firewall MACs directly; none used the router MAC. Two handshake requests had
+matching responses and encrypted data flowed both ways. The capture stopped at
+its packet limit; it does not establish reliability beyond that interval.
+
+The return-path correction is verified. Longer normal use is needed to establish
+that the recurring stalls are resolved. On recurrence, preserve paired physical
+client/LAN captures with timestamps and capture-drop counts before changing policy.
+A rollback is to disable this specific rule and renew only the affected Home UDP
+state; that restores the previous return-path behavior and may restore the fault.
+Keep console access available for controlled testing. Do not reset all states.
+
+Reference: [OPNsense firewall settings](https://docs.opnsense.org/manual/firewall_settings.html).
+Raw captures, MAC addresses, endpoint addresses and private hostnames remain outside
+this public record. Authentication fallback is a separate unresolved question.
 
 ## Distinguish failure classes
 

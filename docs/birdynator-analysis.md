@@ -132,7 +132,8 @@ correlation. Additional sections develop distinct findings and one testable
 follow-up question. Shared identification caveats appear once; middle-ranking
 temperature ordinals and repeated species statistics are discouraged.
 There is no hourly inventory or repeated generic caveat. The explore
-section uses local observations only: no web enrichment, external facts or links.
+section uses local observations only by default. The optional v2.4 trial below
+permits cited species context through provider-hosted search.
 
 ### Deployment verification and known output limitation
 
@@ -262,3 +263,90 @@ BIRDYNATOR_REFRESH_BASE=1 make birdynator-update
 ```
 
 A full `make birdynator-deploy` remains appropriate when proxy/runtime infrastructure itself changes.
+
+
+## Narrative prompt v2.3 (deployment verified)
+
+The prompt now prefers 250-400 words for morning/partial-day reports, with shorter
+reports for sparse evidence. Weather must add a distinct observation; ordinary
+humidity ranks are not mandatory commentary. Follow-ups favor observable species
+behavior over repeating a weather correlation. Bird-to-explore uses available
+detection details and suggests listening only conditionally on recording availability.
+Cautions are kept beside the relevant claim, and decorative filler is discouraged.
+
+Tie instructions explicitly define the existing deterministic field: `ties=1` is
+unique; only `ties>1` allows tied wording. Missing tie information does not support
+a uniqueness claim. Evidence calculations and version v2.1 are unchanged. Prompt
+version is `birdynator-narrative-v2.3`. Offline tests verify request instructions
+and reproducible evidence; they do not guarantee model compliance. Operator logs subsequently confirmed all 18 tests, repository hygiene, rebuild
+and full runtime verification passed. Analysis run 7 exercised the prompt. No
+network or infrastructure changes were made.
+
+The intended voice balances scientific care with an enjoyable birding story.
+Personality should arise from supported species, timing and contrasts; light
+phrasing is welcome, while invented motives, exaggerated rarity and forced humor
+are excluded. Key numerical evidence and comparison scope remain visible.
+
+
+## V2.4 optional species-context trial (local; deployment pending)
+
+Reports now allow slightly more statistical context: 300-450 words for partial
+days and 400-550 for evidence-rich full days, without a minimum. One or two useful
+statistics per finding are encouraged. Activity and diversity alone do not support
+claims that no species dominates; that requires contribution evidence.
+
+Enable enrichment explicitly:
+
+```bash
+podman exec agent-birdynator python /app/birdynator.py analyze-birdnet --web-enrichment --tier default
+```
+
+The Responses API receives the existing evidence plus the optional hosted
+`web_search` tool, with `tool_choice=required`, at most two tool calls, and allowed
+domains `allaboutbirds.org`, `ebird.org`, and `en.wikipedia.org` (including their
+subdomains). The model must check a relevant source, but incorporates information only when
+it adds value, with at
+most two short, relevant connections. External species context must be cited and
+kept distinct from local detections, correlations and predictions. It cannot
+confirm an identification or establish a causal explanation. Local history novelty
+must not be equated with biological rarity. Historical replays may use current
+species references, explicitly as present-day context rather than past evidence.
+
+Search runs on the API provider's infrastructure through the existing controlled
+OpenAI connection. The container gains no direct Internet access, new proxy
+allowlist entry, host port or broader network membership. This is provider-enforced
+domain filtering, not a new locally enforced website proxy. Queries may be sent
+to search providers. The prompt restricts them to species/general topics and forbids
+private station details; this is an instruction, not a deterministic query-redaction
+boundary. No station location is automatically supplied. Keep this trial opt-in.
+Tool availability for the deployed model/account needs live verification; no model
+substitution is performed. Search can add cost and latency.
+
+Citation annotations are rendered into portable Markdown links. HTTPS source URLs
+are checked against the domain list. Source titles/URLs, API response ID, search
+call statuses, domain policy and response-received timestamp are saved under
+`parameters.external_context`. This records provenance, not an exact page snapshot
+or proof that the cited page entails every generated claim. The timestamp records
+API receipt, not page publication or an independently observed fetch time. Evidence
+hashes continue to cover SQL-derived evidence only; external results are not part
+of deterministic replay and are not promoted into memory.
+
+If the tool request is rejected with HTTP 400/422, or search returns unusable/no
+citations, one new tool-free narrative request is made and the fallback is logged
+and stored. Other errors, including ambiguous timeouts, are not retried
+automatically. A response omitting the required search also triggers the tool-free fallback.
+`--evidence-only` remains free of API calls even with the enrichment flag. Tests
+cover allowlisting, citation rendering, provenance persistence, opt-in request
+construction and fallback; live scientific accuracy and relevance require review.
+
+[Official OpenAI web-search documentation](https://developers.openai.com/api/docs/guides/tools-web-search).
+
+
+### Enrichment policy v2 follow-up
+
+Trial run 8 enabled enrichment but returned no search calls or citations under
+the initial automatic tool selection. Policy `species-context-v2` now requires
+a source check when the flag is present, while inclusion remains optional. The
+two-call cap, trusted domains, direct Internet isolation and no-web default remain
+unchanged. Empty/uncited research falls back to local evidence without invented
+facts; live validation of required search remains pending.

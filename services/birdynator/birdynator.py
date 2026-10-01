@@ -3,11 +3,14 @@ import argparse
 import hashlib
 import json
 import os
+import sys
+from urllib.error import HTTPError
 import time
 from pathlib import Path
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
+from enrichment import enable_search, cited_report
 from evidence import VERSION, PROMPT_VERSION, build_evidence, analysis_payload, timestamp
 
 
@@ -349,6 +352,8 @@ def save_analysis(dataset, args, model, result_text, source_digest):
         "tier": args.tier,
         "evidence_version": VERSION,
         "prompt_version": PROMPT_VERSION,
+        "web_enrichment": getattr(args, "web_enrichment", False),
+        "external_context": getattr(args, "external_context", {"status": "disabled"}),
         "through": getattr(args, "through", None),
     }
     with connect() as conn:
@@ -404,21 +409,46 @@ def analyze_birdnet(args):
     if args.evidence_only:
         print(json.dumps(dataset, indent=2, sort_keys=True))
         return
-    payload = json.dumps(request_payload).encode()
+    use_web = getattr(args, "web_enrichment", False)
+    args.external_context = {"status": "disabled"}
 
-    req = Request(
-        OPENAI_API_URL,
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {openai_key()}",
-            "Content-Type": "application/json",
-        },
-    )
+    def request_report(body):
+        req = Request(
+            OPENAI_API_URL, data=json.dumps(body).encode(),
+            headers={"Authorization": f"Bearer {openai_key()}",
+                     "Content-Type": "application/json"})
+        with openai_opener().open(req, timeout=180 if use_web else 90) as response:
+            result = json.loads(response.read())
+        if result.get("status") in ("failed", "incomplete", "cancelled"):
+            raise RuntimeError("OpenAI analysis did not complete; no result saved")
+        return result
 
-    with openai_opener().open(req, timeout=90) as response:
-        data = json.loads(response.read())
-
-    result_text = openai_text(data)
+    if use_web:
+        try:
+            data = request_report(enable_search(request_payload))
+        except HTTPError as error:
+            # A rejected tool request is safe to retry without tools. Do not retry
+            # ambiguous timeouts, rate limits or server failures automatically.
+            if error.code not in (400, 422):
+                raise
+            args.external_context = {"status": "fallback_request_rejected",
+                                     "http_status": error.code}
+            print("Optional search request rejected; generating a local-evidence report.", file=sys.stderr)
+            data = request_report(request_payload)
+            result_text = openai_text(data)
+        else:
+            try:
+                result_text, args.external_context = cited_report(data)
+                if (not args.external_context['search_calls']
+                        or not args.external_context['cited_sources']):
+                    raise ValueError("Required search missing or without citable context")
+            except ValueError:
+                args.external_context = {"status": "fallback_unusable_sources",
+                                         "response_id": data.get("id")}
+                print("Optional search had no usable citations; generating a local-evidence report.", file=sys.stderr)
+                result_text = openai_text(request_report(request_payload))
+    else:
+        result_text = openai_text(request_report(request_payload))
     analysis_id = save_analysis(dataset, args, model, result_text, source_digest)
     print(result_text)
     print(f"\n[analysis saved: id={analysis_id}; source_digest={source_digest[:12]}]")
@@ -462,6 +492,8 @@ def main():
     analyze_parser.add_argument("--top-species", type=int, default=25,
                                 help="compatibility option; v2 uses all species")
     analyze_parser.add_argument("--through", help="historical local hour, e.g. 2026-09-24T23:00:00")
+    analyze_parser.add_argument("--web-enrichment", action="store_true",
+                                help="optional domain-restricted provider-hosted species search")
     analyze_parser.add_argument("--evidence-only", action="store_true",
                                 help="print deterministic evidence without OpenAI or persistence")
     analyze_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
