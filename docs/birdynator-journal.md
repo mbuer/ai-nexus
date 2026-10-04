@@ -204,6 +204,8 @@ No fresh live verification was performed while updating this documentation.
 ## Daily generation and missing-report sync
 
 The [daily workflow](daily-journal.md) adds a 9 p.m. Pacific user timer on AI Nexus
-and a manually triggered -SyncNew mode on Windows. Generation starts tomorrow
-at installation; publication remains under the operator's control. This is a
-prepared source update, not a claim that the timer has been installed or run.
+and a manually triggered -SyncNew mode on Windows. Operator results confirmed
+the timer enabled and active on October 3, with an October 4 start guard.
+The first eligible generation is October 4 at 21:00 Pacific; a completed scheduled
+analysis has not yet been verified. Utility publication of the latest-per-date
+homepage succeeded, retaining earlier reports. Publication remains manual.

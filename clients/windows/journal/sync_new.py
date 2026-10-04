@@ -9,7 +9,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'services/birdynator'))
-from journal import export, report_from_analysis
+from journal import export, rebuild_index, report_from_analysis
 from prepare_upload import build
 
 INVENTORY = r'''
@@ -102,7 +102,8 @@ def sync(ai_host, utility_host, private):
         for record in records:
             (private / ('analysis-' + str(record['id']) + '.json')).write_text(
                 json.dumps(record, ensure_ascii=False), encoding='utf-8')
-            export(report_from_analysis(record), pages)
+            export(report_from_analysis(record), pages, update_index=False)
+        rebuild_index(pages)
         manifest = batch / 'manifest.json'
         packet = build(pages)
         manifest.write_text(json.dumps(packet), encoding='utf-8')
@@ -111,15 +112,19 @@ def sync(ai_host, utility_host, private):
         stage = stage_result.stdout.strip()
         if not re.fullmatch(r'/tmp/birdynator-upload\.[A-Za-z0-9]{10}', stage):
             raise ValueError('Unexpected remote staging path')
-        uploads = [str(pages / item['name']) for item in packet['files']]
+        # Relative page paths keep large batches below Windows' command-line limit.
+        uploads = [item['name'] for item in packet['files']]
         uploads += [str(manifest), str(ROOT / 'deploy/journal-host/publish_utility.py')]
-        subprocess.run(['scp', *uploads, utility_host + ':' + stage + '/'], check=True)
+        subprocess.run(['scp', *uploads, utility_host + ':' + stage + '/'], cwd=pages, check=True)
         subprocess.run(['ssh', '-t', utility_host,
                         'sudo python3 ' + stage + '/publish_utility.py ' + stage], check=True)
         # Advance only after successful publication; a failed run is safe to rerun.
         known.update(added)
         count += len(added)
-        print(f'Published {count} new saved reports so far. Checking for further additions.', flush=True)
+        if len(records) < 250:
+            print(f'Up to date with the saved-analysis snapshot. Published {count} new saved reports.', flush=True)
+            return count
+        print(f'Published {count} new saved reports so far. Reading the next batch.', flush=True)
 
 
 def main():

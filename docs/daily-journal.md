@@ -18,7 +18,14 @@ Keep real SSH aliases and addresses in private operator configuration. The comma
 first reads Utility's published report IDs, then reads missing completed BirdNET
 analyses from AI Nexus in a read-only transaction. It renders and publishes batches
 of up to 250, preserving the existing archive and release history. It continues
-until no missing records remain. A sync with nothing new makes no upload.
+through complete batches until the final saved-analysis snapshot is exhausted.
+A sync with nothing new makes no upload. Analyses saved after the final query
+are picked up by the next manual sync.
+
+The client builds the index and copies the logo once per batch. Uploads use short
+relative page paths to stay within the Windows command-line limit. A final batch
+with fewer than 250 records completes without another SSH login; a full batch
+requires another query to check for more records.
 
 The first sync can bring in older saved trials that were never published; it imports
 all missing saved BirdNET analyses, not only scheduled runs. One date can therefore
@@ -38,7 +45,7 @@ stored password or unattended publication account is introduced.
 
 ## Generation at 9 p.m. Pacific
 
-The proposed user timer runs at **21:00 America/Los_Angeles**. This is a fixed evening
+The installed user timer runs at **21:00 America/Los_Angeles**. This is a fixed evening
 time, not a measured sunset or a guarantee that every bird is asleep. It summarizes
 the latest available rolling 24 hours against the preceding 30-day baseline,
 including any nighttime detections. Source-hour availability can lag the clock;
@@ -75,6 +82,12 @@ See the official systemd [timer](https://github.com/systemd/systemd/blob/main/ma
 and [calendar](https://github.com/systemd/systemd/blob/main/man/systemd.time.xml) references.
 
 ## Installation and inspection
+
+Operator output on October 3 confirmed the timer enabled and active after the
+Quadlet validation fix. Its private start guard is October 4, so the October 3
+calendar wake requests no analysis. The first eligible generation is October 4
+at 21:00 Pacific. A completed scheduled model run has not yet been verified.
+The source update and timer fix were published as `2834f26` and `769c2b8`.
 
 ### Which reports appear on the homepage
 

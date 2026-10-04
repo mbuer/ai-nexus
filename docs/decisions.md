@@ -542,3 +542,20 @@ Windows -SyncNew reads Utility's archive IDs and imports only missing saved Bird
 analyses. Initial sync may import older trials; no model request is made by sync.
 Keep publication manual and preserve existing authentication, proxies, firewall,
 WireGuard and recovery boundaries. See [Daily Journal](daily-journal.md).
+
+## 2026-10-03 — Deployment confirmation and workstation cleanup
+
+Operator results confirmed the daily-sync source update published as `2834f26`,
+with 58 tests, repository hygiene and full deployed isolation checks passing.
+The timer installer needed user generators to validate Quadlet dependencies;
+the fix was published as `769c2b8`. The timer is enabled and active, with an
+October 4 start guard. No completed scheduled analysis has yet been verified.
+Utility's latest-per-source-date homepage was published successfully; older
+versions remain retained.
+
+The Windows working files were reconciled to that deployed source without
+resetting existing Git history or touching private records. Local client cleanup
+then removed an unnecessary final query, builds the index once per batch and uses
+short upload paths for Windows. These additional source improvements passed
+59 offline tests locally and have not been published or deployed on AI Nexus.
+Historical packages and recovery material are retained outside the public checkout.

@@ -105,13 +105,33 @@ class SyncTests(unittest.TestCase):
         record = {'id': 14, 'model': 'offline', 'source_latest_hour': '2026-10-04T20:00:00',
                   'source_digest': None, 'parameters': {}, 'result_text': '# Saved report\n\n## Today\n\nText.'}
         with temporary_export() as directory, patch.object(sync, 'ssh_json', side_effect=[
-                {'version': 1, 'ids': [13]}, [record], []]) as read, \
+                {'version': 1, 'ids': [13]}, [record]]) as read, \
              patch.object(sync.subprocess, 'run', side_effect=[
                  types.SimpleNamespace(stdout='/tmp/birdynator-upload.abcdefghij'), None, None]) as remote:
             self.assertEqual(sync.sync('AI_HOST', 'UTILITY_HOST', directory), 1)
-            self.assertIn('known = [13, 14]', read.call_args.args[2])
+            self.assertEqual(read.call_count, 2)
+            self.assertIn('known = [13]', read.call_args.args[2])
             self.assertEqual(remote.call_args_list[1].args[0][0], 'scp')
+            upload = remote.call_args_list[1]
+            self.assertEqual(upload.kwargs['cwd'].name, 'journal')
+            self.assertIn('2026-10-04-14.html', upload.args[0])
+            self.assertNotIn(str(upload.kwargs['cwd'] / '2026-10-04-14.html'), upload.args[0])
             self.assertNotIn('analyze-birdnet', str(remote.call_args_list))
+
+    def test_full_batch_fetches_next_page_and_builds_one_index(self):
+        records = [{'id': identifier, 'model': 'offline', 'source_latest_hour': '2026-10-04T20:00:00',
+                    'source_digest': None, 'parameters': {}, 'result_text': '# Saved report\n\nText.'}
+                   for identifier in range(14, 264)]
+        with temporary_export() as directory, patch.object(sync, 'ssh_json', side_effect=[
+                {'version': 1, 'ids': [13]}, records, []]) as read, \
+             patch.object(sync, 'rebuild_index', wraps=sync.rebuild_index) as index, \
+             patch.object(sync.subprocess, 'run', side_effect=[
+                 types.SimpleNamespace(stdout='/tmp/birdynator-upload.abcdefghij'), None, None]):
+            self.assertEqual(sync.sync('AI_HOST', 'UTILITY_HOST', directory), 250)
+            self.assertEqual(read.call_count, 3)
+            self.assertIn('known = [13, 14,', read.call_args.args[2])
+            self.assertIn(', 263]', read.call_args.args[2])
+            index.assert_called_once()
 
 
 class DailyTests(unittest.TestCase):

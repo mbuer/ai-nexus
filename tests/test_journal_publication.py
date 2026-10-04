@@ -3,7 +3,6 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
-from test_birdynator_journal import temporary_export
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]

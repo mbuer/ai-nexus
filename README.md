@@ -200,10 +200,14 @@ permanent v2.9 installation. Quiet days can remain shorter; padding adds no valu
 
 The operator also published the static Journal on Utility, including descriptive
 source links, weekday dates and the green logo. Publishing is triggered manually
-from Windows over the existing management and LAN paths. The publisher and UI sources are now integrated into this update, with one shared
-renderer, private output exclusions and a symbolic hosting template. This checkout
-uses installed narrative v2.8; it does not promote the v2.9 trial. Live installation
-of this source update and remote Git publication require separate verification.
+from Windows over the existing management and LAN paths. Source integration and
+the daily-sync update were subsequently published, followed by the Quadlet timer
+validation fix in `769c2b8`. Operator output confirmed 58 tests, repository hygiene
+and full deployed security verification during the update. The evening timer is
+enabled and active, with its first eligible generation on October 4 at 21:00
+Pacific. No completed scheduled analysis has yet been verified. Utility's latest
+publication applies the latest-per-source-date reading view and retains earlier
+reports. Permanent narrative remains v2.8; the v2.9 trial was not promoted.
 
 See [how observations become a Journal page](docs/birdynator-journal.md) for the
 workflow, trust boundaries and remaining reconstruction gap. This status records
@@ -218,7 +222,7 @@ Detailed references:
 - [Architecture](docs/architecture.md)
 - [Birdynator analysis](docs/birdynator-analysis.md)
 - [Birdynator Journal](docs/birdynator-journal.md) — from observations to the evening page
-- [Daily generation and manual sync](docs/daily-journal.md) — prepared schedule and publishing workflow
+- [Daily generation and manual sync](docs/daily-journal.md) — evening schedule and publishing workflow
 - [Agent runtime](docs/agent-runtime.md)
 - [Reproducible runtime](docs/reproducible-runtime.md)
 - [Decision log](docs/decisions.md)

@@ -302,7 +302,7 @@ def homepage_entries(entries):
     return visible
 
 
-def export(report, directory):
+def export(report, directory, *, update_index=True):
     validate(report)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -310,6 +310,14 @@ def export(report, directory):
     atomic_write(directory / f'{stem}.html', render_html(report))
     atomic_write(directory / f'{stem}.md', render_markdown(report))
     atomic_write(directory / f'{stem}.json', json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False))
+    if update_index:
+        rebuild_index(directory)
+    return directory / f'{stem}.html'
+
+
+def rebuild_index(directory):
+    """Build the reading view and logo once after exporting a batch of reports."""
+    directory = Path(directory)
     entries = []
     for path in directory.glob('*.json'):
         saved = validate(json.loads(path.read_text(encoding='utf-8')))
@@ -326,7 +334,6 @@ def export(report, directory):
         logo = '<div class="logo-frame"><img src="birdynator-logo.png" alt="Birdynator bird logo" width="170" height="170"></div>'
     atomic_write(directory / 'index.html', document('Burbank - Bird Home', '<header class="archive-header' + ('' if logo else ' no-logo') + '">' + logo + '<div><div class="brand">Birdynator / Field journal</div><h1>Burbank - Bird Home</h1><p>A growing record of birds, patterns, and questions.</p></div></header>' + links, archive=True))
     atomic_write(directory / 'index.md', '# Birdynator Journal\n\n' + '\n'.join(f'- [{display_date(date)} — {title}]({stem}.md)' for date, stem, title in entries) + '\n')
-    return directory / f'{stem}.html'
 
 
 def main():
