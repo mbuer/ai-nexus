@@ -73,7 +73,8 @@ def main():
     installed_path.write_text(json.dumps({str(path): hashlib.sha256(data).hexdigest() for path, data in files.items()}, indent=2))
     installed_path.chmod(0o600)
     subprocess.run(['systemd-analyze', 'calendar', '*-*-* ' + args.time + ':00 America/Los_Angeles'], check=True)
-    subprocess.run(['systemd-analyze', '--user', 'verify', str(units / 'ai-nexus-daily-journal.service'), str(units / 'ai-nexus-daily-journal.timer')], check=True)
+    # Quadlet services exist through a user generator, not ordinary unit files.
+    subprocess.run(['systemd-analyze', '--user', '--generators', 'verify', str(units / 'ai-nexus-daily-journal.service'), str(units / 'ai-nexus-daily-journal.timer')], check=True)
     subprocess.run(['systemctl', '--user', 'daemon-reload'], check=True)
     subprocess.run(['systemctl', '--user', 'enable', 'ai-nexus-daily-journal.timer'], check=True)
     subprocess.run(['systemctl', '--user', 'restart', 'ai-nexus-daily-journal.timer'], check=True)

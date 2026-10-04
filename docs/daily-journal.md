@@ -104,6 +104,10 @@ systemctl --user list-timers ai-nexus-daily-journal.timer --no-pager
 The installer requires the existing user lingering setup, validates the calendar and
 unit definitions, retains copies of existing installed files, and enables only this
 user timer. It does not rebuild Birdynator or generate an analysis at installation.
+Unit validation invokes user generators so the existing Podman Quadlet services
+are available as dependencies. Without this, the independent verifier can report
+a missing Birdynator service even while the user manager runs it successfully.
+See the systemd [verification options](https://github.com/systemd/systemd/blob/main/man/systemd-analyze.xml).
 The runtime copy is under the operator's local libexec directory; private config,
 attempt receipts and installation recovery copies are under local state. Updating
 the repository later does not automatically change that installed copy: rerun the

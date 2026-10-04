@@ -45,6 +45,8 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(config['not_before'], tomorrow.isoformat())
             self.assertEqual(config['time'], '21:00')
             calls = [call.args[0] for call in commands.call_args_list]
+            verification = next(call for call in calls if call[:2] == ['systemd-analyze', '--user'])
+            self.assertIn('--generators', verification)
             self.assertIn(['systemctl', '--user', 'restart', 'ai-nexus-daily-journal.timer'], calls)
             self.assertFalse(any('podman' in call or 'start' in call or
                                  (call[:1] == ['systemctl'] and 'ai-nexus-daily-journal.service' in call)
