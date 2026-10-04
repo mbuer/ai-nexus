@@ -289,7 +289,20 @@ def atomic_write(path, text):
     temporary.replace(path)
 
 
-def export(report, directory):
+def homepage_entries(entries):
+    """Show the highest saved analysis ID per date; retain all archived files."""
+    def order(entry):
+        identifier = entry[1].rsplit('-', 1)[-1]
+        return (entry[0], int(identifier) if identifier.isdigit() else -1, entry[1])
+    visible, dates = [], set()
+    for entry in sorted(entries, key=order, reverse=True):
+        if entry[0] not in dates:
+            visible.append(entry)
+            dates.add(entry[0])
+    return visible
+
+
+def export(report, directory, *, update_index=True):
     validate(report)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -297,6 +310,14 @@ def export(report, directory):
     atomic_write(directory / f'{stem}.html', render_html(report))
     atomic_write(directory / f'{stem}.md', render_markdown(report))
     atomic_write(directory / f'{stem}.json', json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False))
+    if update_index:
+        rebuild_index(directory)
+    return directory / f'{stem}.html'
+
+
+def rebuild_index(directory):
+    """Build the reading view and logo once after exporting a batch of reports."""
+    directory = Path(directory)
     entries = []
     for path in directory.glob('*.json'):
         saved = validate(json.loads(path.read_text(encoding='utf-8')))
@@ -305,15 +326,14 @@ def export(report, directory):
             raise ValueError('Journal filename does not match its record')
         entries.append((saved['date'], path.stem, saved['headline']))
     entries.sort(reverse=True)
-    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in entries)
+    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in homepage_entries(entries))
     logo_path = Path(__file__).resolve().parent / 'birdynator-logo.png'
     logo = ''
     if logo_path.is_file():
         shutil.copyfile(logo_path, directory / 'birdynator-logo.png')
         logo = '<div class="logo-frame"><img src="birdynator-logo.png" alt="Birdynator bird logo" width="170" height="170"></div>'
-    atomic_write(directory / 'index.html', document('Journal archive', '<header class="archive-header' + ('' if logo else ' no-logo') + '">' + logo + '<div><div class="brand">Birdynator / Field journal</div><h1>A backyard worth noticing.</h1><p>A growing record of birds, patterns, and questions.</p></div></header>' + links, archive=True))
+    atomic_write(directory / 'index.html', document('Burbank - Bird Home', '<header class="archive-header' + ('' if logo else ' no-logo') + '">' + logo + '<div><div class="brand">Birdynator / Field journal</div><h1>Burbank - Bird Home</h1><p>A growing record of birds, patterns, and questions.</p></div></header>' + links, archive=True))
     atomic_write(directory / 'index.md', '# Birdynator Journal\n\n' + '\n'.join(f'- [{display_date(date)} — {title}]({stem}.md)' for date, stem, title in entries) + '\n')
-    return directory / f'{stem}.html'
 
 
 def main():

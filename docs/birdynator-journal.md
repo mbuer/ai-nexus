@@ -200,3 +200,12 @@ Operator deployment results separately record 40 tests, repository hygiene,
 container build and Birdynator-specific runtime verification for the permanent
 updates. Publisher checks and model prose review are distinct from those checks.
 No fresh live verification was performed while updating this documentation.
+
+## Daily generation and missing-report sync
+
+The [daily workflow](daily-journal.md) adds a 9 p.m. Pacific user timer on AI Nexus
+and a manually triggered -SyncNew mode on Windows. Operator results confirmed
+the timer enabled and active on October 3, with an October 4 start guard.
+The first eligible generation is October 4 at 21:00 Pacific; a completed scheduled
+analysis has not yet been verified. Utility publication of the latest-per-date
+homepage succeeded, retaining earlier reports. Publication remains manual.

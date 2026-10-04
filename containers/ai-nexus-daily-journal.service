@@ -1,0 +1,11 @@
+[Unit]
+Description=Generate one saved Birdynator journal report daily
+After=ai-nexus-birdynator.service
+Requires=ai-nexus-birdynator.service
+ConditionPathExists=%h/.local/state/birdynator-journal/daily/config.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/libexec/ai-nexus/daily-journal.py
+TimeoutStartSec=15min
+Restart=no

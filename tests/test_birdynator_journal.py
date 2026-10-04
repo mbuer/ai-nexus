@@ -104,8 +104,10 @@ class JournalTests(unittest.TestCase):
             export(report_from_analysis(self.record), directory)
             root = Path(directory)
             self.assertEqual(len(list(root.glob('*.html'))), 3)
-            self.assertIn('-9.html', (root/'index.html').read_text())
+            self.assertNotIn('-9.html', (root/'index.html').read_text())
             self.assertIn('-10.html', (root/'index.html').read_text())
+            self.assertIn('-9.md', (root/'index.md').read_text())
+            self.assertTrue(next(root.glob('*-9.html')).is_file())
             saved = json.loads(next(root.glob('*-9.json')).read_text())
             self.assertEqual(saved, first)
 

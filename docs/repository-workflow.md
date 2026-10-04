@@ -26,6 +26,25 @@ successful push result. Fetching/pulling is remote access and follows the applic
 approval policy. Do not pull over unexplained local changes or force-push to solve
 a rejected update.
 
+### Workstation reconciliation — October 3, 2026
+
+The Windows review checkout's working files were reconciled to the deployed
+Journal source at `769c2b8`, with recovery copies retained outside the checkout.
+Its initial local Git HEAD was the older `b436655`; existing history and pending
+changes were deliberately preserved. A working-tree diff at that stage can include
+changes already published by the operator on AI Nexus. It is not evidence that
+all those changes still need a new commit.
+
+The subsequent client efficiency and status-documentation cleanup passed 59
+offline tests locally. Its finalization procedure verifies the published base,
+retains the old working files in recovery material and a local stash, advances
+with a fast-forward merge, reapplies only the reviewed cleanup, and creates a
+local commit. Ignored private report records remain intact. A local commit does
+not establish a push or deployment; inspect actual Git status before continuing.
+Do not reset this checkout or blindly commit its whole historical diff. The
+double-click launcher uses this checkout directly; old workstation packages
+are recovery material.
+
 ## Review the exact change
 
 Stage explicit intended paths, including new files; avoid adding diagnostic logs,
