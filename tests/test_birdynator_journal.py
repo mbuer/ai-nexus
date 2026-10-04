@@ -148,6 +148,26 @@ class JournalTests(unittest.TestCase):
         self.assertEqual(report['provenance']['analysis_id'], '9')
         self.assertEqual(report['evidence'], self.evidence)
 
+    def test_optional_context_roundtrip_and_legacy_compatibility(self):
+        self.record['result_text'] += "\n\n## The recent picture\n\nYesterday differed.\n\n## The rhythm of the day\n\nA timing comparison."
+        report = report_from_analysis(self.record, self.evidence)
+        self.assertEqual(report['recent_context']['kind'], 'interpretation')
+        self.assertNotIn('Yesterday differed.', report['watching']['text'])
+        from journal import render_markdown
+        for render in (render_html, render_markdown):
+            output = render(report)
+            self.assertIn('The recent picture', output)
+            self.assertIn('The rhythm of the day', output)
+        report.pop('recent_context')
+        report.pop('daily_rhythm')
+        self.assertNotIn('The recent picture', render_html(report))
+        self.assertNotIn('The rhythm of the day', render_markdown(report))
+        report['recent_context'] = {'text': 'Bad markup <script>x</script>', 'kind': 'interpretation'}
+        self.assertNotIn('<script>', render_html(report))
+        report['recent_context']['kind'] = 'observation'
+        with self.assertRaises(ValueError):
+            validate(report)
+
 
 if __name__ == '__main__':
     unittest.main()
