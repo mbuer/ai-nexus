@@ -211,12 +211,16 @@ The local file is ignored by Git.
 
 Troubleshooting settings tested during the abandoned direct-LAN path are not part of the intended design:
 
-- per-rule `Disable reply-to`
+- per-rule `Disable reply-to` experiments on the abandoned direct-LAN path
 - global `Disable force gateway`
 - direct LAN laptop -> AI Nexus SSH rule
 - temporary AI -> OPNsense ICMP rule
 - Windows persistent route
 
+This cleanup records the earlier experiments. The later, narrowly scoped
+[Home WireGuard return-path correction](#home-wireguard-return-path) deliberately
+disables reply-to on one LAN UDP listener rule. Preserve that documented exception;
+the earlier cleanup is not an instruction to remove it or disable reply-to globally.
 
 ## Application-specific egress
 

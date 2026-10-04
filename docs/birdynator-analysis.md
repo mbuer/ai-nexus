@@ -288,7 +288,7 @@ phrasing is welcome, while invented motives, exaggerated rarity and forced humor
 are excluded. Key numerical evidence and comparison scope remain visible.
 
 
-## V2.4 optional species-context trial (local; deployment pending)
+## V2.4 optional species-context trial (operator-reported deployed)
 
 Reports now allow slightly more statistical context: 300-450 words for partial
 days and 400-550 for evidence-rich full days, without a minimum. One or two useful
@@ -349,4 +349,25 @@ the initial automatic tool selection. Policy `species-context-v2` now requires
 a source check when the flag is present, while inclusion remains optional. The
 two-call cap, trusted domains, direct Internet isolation and no-web default remain
 unchanged. Empty/uncited research falls back to local evidence without invented
-facts; live validation of required search remains pending.
+facts; saved analysis 9 included a Cornell citation under required-search enrichment. Full runtime verification was explicitly confirmed for v2.3; no later v2.4 verification transcript is claimed.
+
+
+## Journal v1 and narrative v2.5 (initial local implementation)
+
+The corrected handoff supersedes earlier word-range preferences: the current
+prompt favors a birding-magazine/data-detective voice, a strong headline, two to
+four short story paragraphs, at most two additional discoveries and one question.
+That initial version had no word target. Rank/tie and species-dominance errors remain known prose
+quality risks; evidence derivation and prompt tests do not certify model wording.
+
+A deterministic structured-report adapter and standalone renderer now create
+HTML, Markdown, JSON and a static archive from analysis runs. New runs persist
+aggregate evidence and the report in the existing parameters field. Journal v1
+and prompt v2.5 were initially checked locally. This paragraph records that
+preparation stage, not the current deployment. Operator results subsequently
+confirmed permanent v2.7 and v2.8 updates with 40 offline tests, repository hygiene
+and Birdynator-specific runtime checks. Analysis 13 used a temporary v2.9 prompt
+with a conditional longer-story target; permanent v2.9 installation is not established.
+See [current status](../README.md#journal-status--october-3-2026) and
+[Birdynator Journal](birdynator-journal.md) for the publication workflow,
+source-integration gap and validation boundaries.

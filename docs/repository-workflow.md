@@ -36,7 +36,7 @@ git --no-pager diff --cached --check
 make repo-check
 ```
 
-`make repo-check` is a tracked-file syntax/content scan. It does not inspect Git
+`make repo-check` is a tracked-file syntax/content scan, including Python and PowerShell content. It does not inspect Git
 author/committer metadata, untracked files, all possible secrets, or runtime health.
 Manual public-hygiene review is still required. For application changes, also run
 `make test`, the relevant update workflow and deployed `make verify`. Documentation

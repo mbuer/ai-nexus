@@ -28,14 +28,14 @@ else
     ok "secret-like path check passed"
 fi
 
-tracked_text="$(git ls-files '*.md' '*.sh' '*.pl' '*.env' '*.yaml' '*.yml' '*.toml' '*.txt')"
+tracked_text="$(git ls-files '*.md' '*.sh' '*.pl' '*.env' '*.yaml' '*.yml' '*.toml' '*.txt' '*.py' '*.ps1' '*.psd1' '*.conf' '*.in' Makefile)"
 if [[ -n "$tracked_text" ]] && grep -nE -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|sk-proj-[A-Za-z0-9_-]+|ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+' $tracked_text 2>/dev/null; then
     bad "possible credential material found"
 else
     ok "credential-content check passed"
 fi
 
-scan_files="$(git ls-files '*.md' '*.sh' '*.pl' '*.env' '*.yaml' '*.yml' '*.toml' '*.txt' | grep -vE '(^|/)config/.*\.example\.(env|ya?ml)$' || true)"
+scan_files="$(git ls-files '*.md' '*.sh' '*.pl' '*.env' '*.yaml' '*.yml' '*.toml' '*.txt' '*.py' '*.ps1' '*.psd1' '*.conf' '*.in' Makefile | grep -vE '(^|/)config/.*\.example\.(env|ya?ml)$' || true)"
 
 if [[ -n "$scan_files" ]] && grep -nE '(^|[^0-9])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9]|$)' $scan_files 2>/dev/null; then
     bad "private IPv4 address found outside example config"

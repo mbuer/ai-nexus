@@ -140,12 +140,15 @@ class EnrichmentPipelineTests(unittest.TestCase):
             {'url': 'https://ebird.org/species/test'}]}
         conn = MagicMock()
         conn.__enter__.return_value.cursor.return_value.__enter__.return_value.fetchone.return_value = (8,)
+        source_digest = self.app.hashlib.sha256(json.dumps(
+            self.dataset, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
         with patch.object(self.app, 'connect', return_value=conn):
-            self.app.save_analysis(self.dataset, self.args, 'test-model', 'report', 'digest')
+            self.app.save_analysis(self.dataset, self.args, 'test-model', 'report', source_digest)
         cursor = conn.__enter__.return_value.cursor.return_value.__enter__.return_value
         params = json.loads(cursor.execute.call_args.args[1][-2])
         self.assertTrue(params['web_enrichment'])
         self.assertEqual(params['external_context'], self.args.external_context)
+        self.assertEqual(params['journal_report']['evidence'], self.dataset)
 
 
 if __name__ == '__main__':
