@@ -1,0 +1,18 @@
+# Replace symbolic values in a private copy; inspect the existing host first.
+server {
+    listen UTILITY_LAN_IP:8080;
+    server_name _;
+    root /srv/birdynator-journal/current;
+    index index.html;
+    autoindex off;
+    allow HOME_LAN_CIDR;
+    deny all;
+    add_header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+    location / {
+        limit_except GET { deny all; }
+        try_files $uri $uri/ =404;
+    }
+    location ~ (^|/)\. { deny all; }
+}

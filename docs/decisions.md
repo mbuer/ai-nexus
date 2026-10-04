@@ -480,4 +480,51 @@ Default reports stay local-evidence only. See [Birdynator analysis](birdynator-a
 The initial trial returned no search calls with automatic tool choice. On operator
 approval, enrichment policy v2 requires a source check when explicitly enabled,
 while retaining optional inclusion, the two-call cap and the same source domains.
-Default runs do not research. Required-search live validation remains pending.
+Default runs do not research. The corrected operator handoff confirms saved run 9 included a Cornell citation with required search. This is bounded evidence of enrichment use, not a later full-runtime verification transcript.
+
+
+## 2026-10-03 — Journal v1 as standalone exports (local implementation)
+
+Refine narrative prompt v2.5 toward magazine-style stories with selective numbers
+and no word target. Adapt narrative into a deterministic structured report; render
+escaped HTML, Markdown and a static index without a hosted service or framework.
+Persist new report objects and aggregate evidence inside the existing
+analysis_runs parameters JSON, with source-digest checks before rendering metrics
+or charts. Legacy saved analyses keep their original text and provenance and do
+not gain invented historical evidence. Questions stay separate from canonical
+memory. No Grafana, database schema, network, ML interface or isolation change.
+Deployment and live prompt validation remain pending.
+
+## 2026-10-03 — Manual Journal publication and deployment follow-up
+
+Supersede the preparation-only status of the earlier Journal entry: operator
+results confirm permanent v2.7 and v2.8 updates, each with 40 offline tests,
+repository hygiene and Birdynator-specific runtime verification. These are not
+claims of a later full-stack verification or proof of prose accuracy. Narrative
+v2.9 was a temporary trial used for saved analysis 13, with a conditional longer
+story target; permanent v2.9 installation is not established.
+
+Use the existing Windows PC as a manually triggered artifact carrier. Read a saved
+analysis through existing WireGuard SSH, render locally, then publish completed
+static output over a separate LAN SSH connection to Utility. Utility does not join
+the AI bridge. No transport VM, new agent network capability or automatic promotion
+to canonical memory is introduced. Preserve existing authentication and keep real
+configuration and private records out of public Git.
+
+The operator published the green logo, descriptive source links and weekday dates.
+Those publisher/UI changes remain in a separate workstation package pending reviewed
+source integration. Deployment is not Git publication. Keep the existing repository
+for now; a future split requires a concrete independent lifecycle and a report
+compatibility contract. See [Birdynator Journal](birdynator-journal.md) for the
+end-to-end explanation and reconstruction limitations.
+
+## 2026-10-03 — Reconcile Journal source ownership
+
+Prepare the repository update using permanent narrative v2.8, the reviewed Journal
+renderer and final green logo. Keep the v2.9 prompt trial separate. The Windows
+client invokes the one shared renderer; publication and the nginx template live
+under the separate hosting component. Private records are ignored and the client
+has no hard-coded live destination. Extend tracked content hygiene to Python and
+PowerShell. Preserve the earlier deployment records; source integration does not
+establish live deployment or remote publication. No datasource, memory, network
+or credential privilege change is introduced.

@@ -86,10 +86,10 @@ The narrative develops one main story and at most two additional discoveries,
 with a concrete question to revisit and a locally selected bird to explore.
 Evidence-rich days target 400-600 words; quiet days can be shorter. Historical
 replay uses an explicit cutoff, and evidence-only inspection makes no model call.
-External enrichment and live ML integration remain deferred; archive replay can
+External enrichment is opt-in through provider-hosted search; live ML integration remains deferred. Archive replay can
 optionally inspect experimental forecasts.
 
-Evidence v2.1 and prompt v2.2 were deployed successfully. Eighteen regression tests,
+The September 2026 deployment of evidence v2.1 and prompt v2.2 succeeded. Eighteen regression tests,
 repository checks and full runtime verification passed in operator-provided logs.
 The historical model run persisted successfully, but generated prose still
 requires review: it incorrectly described unique first-place ranks as tied.
@@ -98,6 +98,21 @@ This is a model-output limitation, not a failure of the computed rankings.
 Read:
 
 - [Birdynator analysis](birdynator-analysis.md)
+
+### Evening Journal
+
+The Journal turns a saved analysis into static HTML, Markdown and a structured
+report. A manually triggered Windows publisher reads the chosen run through the
+existing WireGuard management path, renders it locally, then uploads the completed
+files to a separate LAN web host. Utility serves the pages without gaining access
+to the AI bridge. The operator has published the green logo, source titles and
+weekday dates through this workflow.
+
+The installed narrative is v2.8 according to October 3 operator deployment results;
+v2.9 was a temporary longer-story trial. Publisher and UI sources are integrated
+in this repository update; live deployment and Git publication remain separate. See the dated
+[current status](../README.md#journal-status--october-3-2026) and the
+[Journal explanation](birdynator-journal.md) before attempting reconstruction.
 
 ### Analysis history and provenance
 
@@ -187,6 +202,16 @@ Birdynator can:
 but each path is independently constrained and observable.
 
 That separation is the core of AI Nexus.
+
+## Reading in the evenings
+
+Start with [the Journal's journey](birdynator-journal.md#from-observation-to-evening-page)
+for one connected account of data, interpretation, transport and publication.
+Then read [Architecture](architecture.md) and [Security baseline](security-baseline.md)
+to understand why each boundary exists. [Backup and recovery](backup-recovery.md)
+explains what survives a failure; the [decision log](decisions.md) records how the
+design developed. These existing pages are complementary chapters, not competing
+copies of the same instructions.
 
 ## Recommended reading order
 

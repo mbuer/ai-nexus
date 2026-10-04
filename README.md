@@ -186,6 +186,29 @@ Use symbolic names in documentation and keep environment-specific values in igno
 
 Review author/committer metadata before publishing, and keep raw troubleshooting logs and captures out of the checkout. See [Repository workflow](docs/repository-workflow.md) for transfer, line-ending, attribution and publication checks.
 
+## Journal status — October 3, 2026
+
+Operator-provided deployment results confirm narrative v2.8 is installed on AI
+Nexus. The earlier v2.7 update added the persisted Journal report and aggregate
+evidence to existing analysis parameters. Both deployment workflows passed 40
+offline tests, repository hygiene and Birdynator-specific runtime verification.
+These results do not claim a new full-stack verification or certify model prose.
+
+Saved analysis 13 used a temporary v2.9 trial, aiming for roughly 400–600 words
+when useful evidence supports a longer story. This trial does not establish
+permanent v2.9 installation. Quiet days can remain shorter; padding adds no value.
+
+The operator also published the static Journal on Utility, including descriptive
+source links, weekday dates and the green logo. Publishing is triggered manually
+from Windows over the existing management and LAN paths. The publisher and UI sources are now integrated into this update, with one shared
+renderer, private output exclusions and a symbolic hosting template. This checkout
+uses installed narrative v2.8; it does not promote the v2.9 trial. Live installation
+of this source update and remote Git publication require separate verification.
+
+See [how observations become a Journal page](docs/birdynator-journal.md) for the
+workflow, trust boundaries and remaining reconstruction gap. This status records
+operator evidence; it is not a fresh inspection of the live hosts or remote Git.
+
 ## Start here
 
 For a compact overview of the project and the important reading order, see [Executive summary](docs/executive-summary.md).
@@ -194,6 +217,7 @@ Detailed references:
 
 - [Architecture](docs/architecture.md)
 - [Birdynator analysis](docs/birdynator-analysis.md)
+- [Birdynator Journal](docs/birdynator-journal.md) — from observations to the evening page
 - [Agent runtime](docs/agent-runtime.md)
 - [Reproducible runtime](docs/reproducible-runtime.md)
 - [Decision log](docs/decisions.md)

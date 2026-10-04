@@ -10,8 +10,8 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY birdynator.py evidence.py enrichment.py /app/
-RUN python -m py_compile /app/birdynator.py /app/evidence.py /app/enrichment.py
+COPY birdynator.py evidence.py enrichment.py journal.py birdynator-logo.png /app/
+RUN python -m py_compile /app/birdynator.py /app/evidence.py /app/enrichment.py /app/journal.py
 RUN chown -R birdynator:birdynator /app
 
 USER 10001:10001

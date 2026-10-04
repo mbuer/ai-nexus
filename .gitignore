@@ -20,3 +20,9 @@ credentials/
 .idea/
 *.swp
 .DS_Store
+
+# Private Journal records and generated workstation publications
+clients/windows/journal/private/
+deploy/journal-host/*.local.conf
+__pycache__/
+*.pyc

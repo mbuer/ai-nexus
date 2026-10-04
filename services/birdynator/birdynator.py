@@ -11,6 +11,7 @@ from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 import psycopg
 from enrichment import enable_search, cited_report
+from journal import report_from_analysis, export as export_journal
 from evidence import VERSION, PROMPT_VERSION, build_evidence, analysis_payload, timestamp
 
 
@@ -356,6 +357,11 @@ def save_analysis(dataset, args, model, result_text, source_digest):
         "external_context": getattr(args, "external_context", {"status": "disabled"}),
         "through": getattr(args, "through", None),
     }
+    parameters['journal_report'] = report_from_analysis({
+        'id': 'pending', 'source_latest_hour': window['latest_hour'],
+        'source_digest': source_digest, 'model': model,
+        'parameters': parameters, 'result_text': result_text,
+    }, dataset)
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -409,6 +415,7 @@ def analyze_birdnet(args):
     if args.evidence_only:
         print(json.dumps(dataset, indent=2, sort_keys=True))
         return
+    print(f"Journal prompt: {PROMPT_VERSION}; evidence through {dataset['window']['latest_hour']}", file=sys.stderr)
     use_web = getattr(args, "web_enrichment", False)
     args.external_context = {"status": "disabled"}
 
@@ -450,8 +457,30 @@ def analyze_birdnet(args):
     else:
         result_text = openai_text(request_report(request_payload))
     analysis_id = save_analysis(dataset, args, model, result_text, source_digest)
+    if getattr(args, 'journal_output', None):
+        report = report_from_analysis({
+            'id': analysis_id, 'source_latest_hour': dataset['window']['latest_hour'],
+            'source_digest': source_digest, 'model': model, 'result_text': result_text,
+            'parameters': {'prompt_version': PROMPT_VERSION, 'external_context': args.external_context},
+        }, dataset)
+        print(f"[journal exported: {export_journal(report, args.journal_output)}]")
     print(result_text)
     print(f"\n[analysis saved: id={analysis_id}; source_digest={source_digest[:12]}]")
+
+def journal_saved(args):
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, model, source_latest_hour, source_digest, parameters, result_text "
+                        "FROM analysis_runs WHERE id = %s", (args.analysis_id,))
+            rows = rows_as_dicts(cur)
+    if not rows:
+        raise ValueError("Analysis ID not found")
+    record = rows[0]
+    saved = record['parameters'].get('journal_report')
+    evidence = saved.get('evidence') if saved else None
+    report = report_from_analysis(record, evidence, args.headline or (saved['headline'] if saved else None))
+    print(export_journal(report, args.output))
+
 
 def serve():
     health()
@@ -492,6 +521,7 @@ def main():
     analyze_parser.add_argument("--top-species", type=int, default=25,
                                 help="compatibility option; v2 uses all species")
     analyze_parser.add_argument("--through", help="historical local hour, e.g. 2026-09-24T23:00:00")
+    analyze_parser.add_argument("--journal-output", help="write standalone HTML, Markdown, JSON and archive index")
     analyze_parser.add_argument("--web-enrichment", action="store_true",
                                 help="optional domain-restricted provider-hosted species search")
     analyze_parser.add_argument("--evidence-only", action="store_true",
@@ -500,6 +530,11 @@ def main():
 
     history_parser = sub.add_parser("analysis-history")
     history_parser.add_argument("--limit", type=int, default=10)
+
+    journal_parser = sub.add_parser("export-journal")
+    journal_parser.add_argument("analysis_id", type=int)
+    journal_parser.add_argument("--output", required=True)
+    journal_parser.add_argument("--headline")
 
     args = parser.parse_args()
 
@@ -519,6 +554,8 @@ def main():
         birdnet_health()
     elif args.command == "analyze-birdnet":
         analyze_birdnet(args)
+    elif args.command == "export-journal":
+        journal_saved(args)
     elif args.command == "analysis-history":
         analysis_history(args)
 
