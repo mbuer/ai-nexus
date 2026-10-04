@@ -209,3 +209,23 @@ the timer enabled and active on October 3, with an October 4 start guard.
 The first eligible generation is October 4 at 21:00 Pacific; a completed scheduled
 analysis has not yet been verified. Utility publication of the latest-per-date
 homepage succeeded, retaining earlier reports. Publication remains manual.
+
+## Fuller narrative with optional context (v3.0 source update)
+
+The default model is GPT-6.1 Sol. Narrative v3.0 requests approximately 450-650
+words when there is enough distinct evidence and cited context, with no minimum
+or mandatory section count. Quiet days can remain short. The optional sections
+The recent picture and The rhythm of the day add recent comparisons and supported
+timing context. They remain interpretations, never new observations or computed
+statistics. The renderer exports them as optional fields in the existing v1 report
+and omits them when empty; older reports without those fields remain readable.
+The same headings are preserved in HTML and Markdown. No source window, evidence
+derivation, search-domain policy, memory promotion or trust boundary changes.
+
+Existing deployments need an updated image and Quadlet before these defaults
+apply. Offline tests verify the report contract, not model length or prose quality.
+Review one fresh saved analysis after runtime verification before publication.
+
+Operator confirmation: narrative v3.0 and GPT-6.1 Sol are installed. All 60
+host tests and Birdynator security checks passed; saved analysis 14 includes
+the optional timing section. Utility publication needs separate verification.

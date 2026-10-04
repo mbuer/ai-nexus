@@ -29,7 +29,7 @@ Birdynator currently supports:
 - memory-aware OpenAI reasoning
 - manual model tiers:
   - fast: `gpt-5.6-luna`
-  - default: `gpt-5.6-terra`
+  - default: `gpt-6.1-sol`
   - deep: `gpt-5.6-sol`
 - real BirdNET + weather analysis
 - recent-window versus historical-baseline comparison

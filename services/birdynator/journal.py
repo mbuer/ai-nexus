@@ -17,10 +17,12 @@ SECTION_NAMES = {
     "today's story": 'todays_story', 'what caught my eye': 'findings',
     'something to watch': 'watching', 'birdynator is watching': 'watching',
     'model surprise': 'model_surprise', 'bird to explore': 'bird_to_explore',
+    'the recent picture': 'recent_context', 'the rhythm of the day': 'daily_rhythm',
 }
 LABELS = {'todays_story': "Today's story", 'findings': 'What caught my eye',
           'watching': 'Birdynator is watching', 'model_surprise': 'Model surprise',
-          'bird_to_explore': 'Bird to explore'}
+          'bird_to_explore': 'Bird to explore',
+          'recent_context': 'The recent picture', 'daily_rhythm': 'The rhythm of the day'}
 CSS = """
 :root{color-scheme:light dark;--bg:#f5f3ec;--paper:#fffef9;--ink:#253c33;--muted:#52635a;--line:#d4dacf;--accent:#35664b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 system-ui,sans-serif}
@@ -113,6 +115,8 @@ def report_from_analysis(record, evidence=None, headline=None):
         'watching': {'text': sections['watching'], 'kind': 'hypothesis'} if sections['watching'] else None,
         'model_surprise': {'text': sections['model_surprise'], 'kind': 'prediction_interpretation'} if sections['model_surprise'] else None,
         'bird_to_explore': {'text': sections['bird_to_explore'], 'kind': 'interpretation'} if sections['bird_to_explore'] else None,
+        'recent_context': {'text': sections['recent_context'], 'kind': 'interpretation'} if sections['recent_context'] else None,
+        'daily_rhythm': {'text': sections['daily_rhythm'], 'kind': 'interpretation'} if sections['daily_rhythm'] else None,
         'charts': ['diversity'] if evidence and re.search(r'\b(species|diversity|variety)\b', story, re.I) else [],
         'evidence': evidence,
         'provenance': {'analysis_id': str(record['id']), 'model': record.get('model'),
@@ -136,10 +140,10 @@ def validate(report):
         raise ValueError('Expected at most three metrics')
     if not isinstance(report.get('findings'), list) or len(report['findings']) > 2:
         raise ValueError('Expected at most two findings')
-    for item in report['findings'] + [report[k] for k in ('watching', 'model_surprise', 'bird_to_explore') if report.get(k)]:
+    for item in report['findings'] + [report[k] for k in ('watching', 'model_surprise', 'bird_to_explore', 'recent_context', 'daily_rhythm') if report.get(k)]:
         if not isinstance(item, dict) or not isinstance(item.get('text'), str):
             raise ValueError('Invalid narrative section')
-    for key, kind in [('watching', 'hypothesis'), ('model_surprise', 'prediction_interpretation'), ('bird_to_explore', 'interpretation')]:
+    for key, kind in [('watching', 'hypothesis'), ('model_surprise', 'prediction_interpretation'), ('bird_to_explore', 'interpretation'), ('recent_context', 'interpretation'), ('daily_rhythm', 'interpretation')]:
         if report.get(key) and report[key].get('kind') != kind:
             raise ValueError('Incorrect section evidence type')
     if any(item.get('kind') != 'interpretation' for item in report['findings']):
@@ -254,6 +258,10 @@ def render_html(report):
     if findings:
         story += '<section class="card"><h2>What caught my eye</h2>' + findings + '</section>'
     story += chart(report)
+    for key in ('recent_context', 'daily_rhythm'):
+        item = report.get(key)
+        if item and item['text'].strip():
+            story += f'<section class="card story"><h2>{LABELS[key]}</h2>{paragraphs(item["text"], titles)}</section>'
     side = ''
     for key, tag in [('watching', 'A question to revisit'), ('model_surprise', 'Experimental model context'), ('bird_to_explore', 'Connected to this day')]:
         item = report.get(key)
@@ -274,8 +282,8 @@ def render_markdown(report):
     validate(report)
     parts = [f'# {report["headline"]}', display_date(report['date']), report['provenance']['origin'],
              "## Today's story", report['todays_story']]
-    for key in ('findings', 'watching', 'model_surprise', 'bird_to_explore'):
-        items = report[key] if key == 'findings' else [report[key]]
+    for key in ('findings', 'recent_context', 'daily_rhythm', 'watching', 'model_surprise', 'bird_to_explore'):
+        items = report[key] if key == 'findings' else [report.get(key)]
         text = '\n\n'.join(i['text'] for i in items if i and i['text'].strip())
         if text:
             parts += [f'## {LABELS[key]}', text]

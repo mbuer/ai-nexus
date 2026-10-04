@@ -117,8 +117,8 @@ Birdynator is configured for tiered OpenAI model routing:
 
 ```text
 fast/default-low-cost: gpt-5.6-luna
-normal/default:         gpt-5.6-terra
-deep/escalation:        gpt-5.6-sol
+normal/default:         gpt-6.1-sol
+deep/explicit legacy:   gpt-5.6-sol
 ```
 
 The OpenAI API credential remains a local runtime secret and is never committed to Git.
@@ -228,3 +228,9 @@ make birdynator-update
 The update target applies migrations, rebuilds only Birdynator, restarts it, and runs its verification checks. The cached Python base image is reused unless `BIRDYNATOR_REFRESH_BASE=1` is explicitly set.
 
 The container build runs `python -m py_compile` so syntax errors fail during image construction instead of at first execution.
+
+The default tier uses GPT-6.1 Sol for analysis and conversation. The fast and
+explicit legacy deep tiers remain unchanged. The container Quadlet sets the
+active model; `birdynator.py` supplies the matching fallback. The example runtime
+file documents the values but is not injected into the agent automatically.
+Verify the running container after applying the update.

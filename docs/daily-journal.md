@@ -55,7 +55,9 @@ The timer calls `scripts/daily-journal.py` on the host. That script invokes the
 existing restricted container and controlled proxies with the normal analysis CLI.
 It does not move credentials onto the host or expand container networking. Optional
 species research is enabled through the existing approved enrichment policy and
-model routing; it can incur the normal daily API cost.
+model routing; the default tier now selects `gpt-6.1-sol`. It can incur the
+normal daily API cost. This source setting needs a verified container update
+before an existing installation uses it.
 
 The installer sets a private `not_before` date to tomorrow in Pacific time. It enables
 the timer without starting the generation service. This preserves the operator's

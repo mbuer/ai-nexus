@@ -49,7 +49,7 @@ Default comparison:
 - recent window: **24 hours**
 - baseline: **previous 30 days**
 - baseline excludes the recent window
-- default model tier: **Terra**
+- default model tier: **GPT-6.1 Sol**
 
 Run:
 
