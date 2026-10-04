@@ -311,7 +311,7 @@ def export(report, directory):
     if logo_path.is_file():
         shutil.copyfile(logo_path, directory / 'birdynator-logo.png')
         logo = '<div class="logo-frame"><img src="birdynator-logo.png" alt="Birdynator bird logo" width="170" height="170"></div>'
-    atomic_write(directory / 'index.html', document('Journal archive', '<header class="archive-header' + ('' if logo else ' no-logo') + '">' + logo + '<div><div class="brand">Birdynator / Field journal</div><h1>A backyard worth noticing.</h1><p>A growing record of birds, patterns, and questions.</p></div></header>' + links, archive=True))
+    atomic_write(directory / 'index.html', document('Burbank - Bird Home', '<header class="archive-header' + ('' if logo else ' no-logo') + '">' + logo + '<div><div class="brand">Birdynator / Field journal</div><h1>Burbank - Bird Home</h1><p>A growing record of birds, patterns, and questions.</p></div></header>' + links, archive=True))
     atomic_write(directory / 'index.md', '# Birdynator Journal\n\n' + '\n'.join(f'- [{display_date(date)} — {title}]({stem}.md)' for date, stem, title in entries) + '\n')
     return directory / f'{stem}.html'
 

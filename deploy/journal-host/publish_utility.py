@@ -135,11 +135,11 @@ def publish(stage):
     index = (release / 'index.html').read_text(encoding='utf-8')
     if '<article class="entry">' not in index:
         raise ValueError('Unexpected journal index structure')
-    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> Â· <a href="{stem}.json">Structured report</a></article>' for date, stem, title in entries)
+    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in entries)
     index = re.sub(r'<article class="entry">.*?</article>', '', index, flags=re.S)
     index = index.replace('</main>', links + '</main>')
     (release / 'index.html').write_text(index, encoding='utf-8')
-    (release / 'index.md').write_text('# Birdynator Journal\n\n' + '\n'.join(f'- [{display_date(date)} â€” {title}]({stem}.md)' for date, stem, title in entries), encoding='utf-8')
+    (release / 'index.md').write_text('# Birdynator Journal\n\n' + '\n'.join(f'- [{display_date(date)} — {title}]({stem}.md)' for date, stem, title in entries), encoding='utf-8')
     for path in release.iterdir():
         path.chmod(0o644)
     if (release / 'birdynator-logo.png').exists():
