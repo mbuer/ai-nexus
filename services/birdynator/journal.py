@@ -289,6 +289,19 @@ def atomic_write(path, text):
     temporary.replace(path)
 
 
+def homepage_entries(entries):
+    """Show the highest saved analysis ID per date; retain all archived files."""
+    def order(entry):
+        identifier = entry[1].rsplit('-', 1)[-1]
+        return (entry[0], int(identifier) if identifier.isdigit() else -1, entry[1])
+    visible, dates = [], set()
+    for entry in sorted(entries, key=order, reverse=True):
+        if entry[0] not in dates:
+            visible.append(entry)
+            dates.add(entry[0])
+    return visible
+
+
 def export(report, directory):
     validate(report)
     directory = Path(directory)
@@ -305,7 +318,7 @@ def export(report, directory):
             raise ValueError('Journal filename does not match its record')
         entries.append((saved['date'], path.stem, saved['headline']))
     entries.sort(reverse=True)
-    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in entries)
+    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in homepage_entries(entries))
     logo_path = Path(__file__).resolve().parent / 'birdynator-logo.png'
     logo = ''
     if logo_path.is_file():

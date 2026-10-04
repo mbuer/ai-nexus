@@ -528,3 +528,17 @@ has no hard-coded live destination. Extend tracked content hygiene to Python and
 PowerShell. Preserve the earlier deployment records; source integration does not
 establish live deployment or remote publication. No datasource, memory, network
 or credential privilege change is introduced.
+
+## 2026-10-03 — Daily generation with manually triggered sync
+
+Prepare one automated daily attempt at 21:00 America/Los_Angeles on AI Nexus,
+starting no earlier than tomorrow when installed. Retain the existing model,
+24-hour window, 30-day baseline and opt-in enrichment capability for the scheduled
+command. The worker skips if a report exists that Pacific date, locks its own
+instances and does not automatically retry ambiguous failures. Saved analyses
+remain separate from canonical memory. No scheduled run has been verified yet.
+
+Windows -SyncNew reads Utility's archive IDs and imports only missing saved BirdNET
+analyses. Initial sync may import older trials; no model request is made by sync.
+Keep publication manual and preserve existing authentication, proxies, firewall,
+WireGuard and recovery boundaries. See [Daily Journal](daily-journal.md).

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Birdynator generation in Pacific time
+
+[Timer]
+OnCalendar=*-*-* @DAILY_TIME@:00 America/Los_Angeles
+Persistent=false
+AccuracySec=1min
+Unit=ai-nexus-daily-journal.service
+
+[Install]
+WantedBy=timers.target

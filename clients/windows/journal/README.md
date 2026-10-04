@@ -23,3 +23,11 @@ Private records and generated pages live under the ignored `private/` directory.
 Rendered JSON/evidence is readable by LAN Journal readers; raw records stay local.
 Retained releases and staging have no automatic cleanup. See the Journal chapter
 and hosting instructions for validation and recovery.
+
+## Sync all missing reports
+
+Run the same publisher with -SyncNew instead of -AnalysisId. It compares Utility's
+archive with saved BirdNET analyses, publishes missing IDs in bounded batches and
+never requests a model analysis. No upload occurs if the archive is up to date.
+See [daily generation and manual sync](../../../docs/daily-journal.md) for the full
+workflow, first-sync historical imports, safeguards and daily timer operation.

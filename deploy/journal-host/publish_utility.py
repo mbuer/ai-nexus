@@ -86,6 +86,19 @@ def allow_local_logo(base):
     print('Journal images allowed from this server only. nginx backup: ' + str(backup))
 
 
+def homepage_entries(entries):
+    """Show the highest saved analysis ID per date; retain all archived files."""
+    def order(entry):
+        identifier = entry[1].rsplit('-', 1)[-1]
+        return (entry[0], int(identifier) if identifier.isdigit() else -1, entry[1])
+    visible, dates = [], set()
+    for entry in sorted(entries, key=order, reverse=True):
+        if entry[0] not in dates:
+            visible.append(entry)
+            dates.add(entry[0])
+    return visible
+
+
 def publish(stage):
     stage = Path(stage)
     if (stage.parent != Path('/tmp') or not re.fullmatch(r'birdynator-upload\.[A-Za-z0-9]{10}', stage.name)
@@ -135,7 +148,7 @@ def publish(stage):
     index = (release / 'index.html').read_text(encoding='utf-8')
     if '<article class="entry">' not in index:
         raise ValueError('Unexpected journal index structure')
-    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in entries)
+    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in homepage_entries(entries))
     index = re.sub(r'<article class="entry">.*?</article>', '', index, flags=re.S)
     index = index.replace('</main>', links + '</main>')
     (release / 'index.html').write_text(index, encoding='utf-8')

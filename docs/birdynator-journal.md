@@ -200,3 +200,10 @@ Operator deployment results separately record 40 tests, repository hygiene,
 container build and Birdynator-specific runtime verification for the permanent
 updates. Publisher checks and model prose review are distinct from those checks.
 No fresh live verification was performed while updating this documentation.
+
+## Daily generation and missing-report sync
+
+The [daily workflow](daily-journal.md) adds a 9 p.m. Pacific user timer on AI Nexus
+and a manually triggered -SyncNew mode on Windows. Generation starts tomorrow
+at installation; publication remains under the operator's control. This is a
+prepared source update, not a claim that the timer has been installed or run.

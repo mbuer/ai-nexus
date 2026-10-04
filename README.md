@@ -218,6 +218,7 @@ Detailed references:
 - [Architecture](docs/architecture.md)
 - [Birdynator analysis](docs/birdynator-analysis.md)
 - [Birdynator Journal](docs/birdynator-journal.md) — from observations to the evening page
+- [Daily generation and manual sync](docs/daily-journal.md) — prepared schedule and publishing workflow
 - [Agent runtime](docs/agent-runtime.md)
 - [Reproducible runtime](docs/reproducible-runtime.md)
 - [Decision log](docs/decisions.md)

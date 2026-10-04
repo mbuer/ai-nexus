@@ -8,7 +8,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'services/birdynator'))
-from journal import display_date, report_from_analysis, render_html
+from journal import display_date, report_from_analysis, render_html, export, homepage_entries
+from test_birdynator_journal import temporary_export
 
 spec = importlib.util.spec_from_file_location('journal_publisher', ROOT / 'deploy/journal-host/publish_utility.py')
 publisher = importlib.util.module_from_spec(spec)
@@ -16,6 +17,26 @@ spec.loader.exec_module(publisher)
 
 
 class PublicationTests(unittest.TestCase):
+    def test_homepage_keeps_latest_day_and_retains_earlier_files(self):
+        with temporary_export() as directory:
+            for identifier, day in [(9, '2026-09-30'), (10, '2026-10-03'), (13, '2026-10-03')]:
+                record = {'id': identifier, 'model': 'offline', 'source_latest_hour': day + 'T12:00:00',
+                          'source_digest': None, 'parameters': {},
+                          'result_text': '# Saved report ' + str(identifier) + '\n\n## Today\n\nText.'}
+                export(report_from_analysis(record), directory)
+            page = (directory / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('2026-10-03-13.html', page)
+            self.assertIn('2026-09-30-9.html', page)
+            self.assertNotIn('2026-10-03-10.html', page)
+            self.assertTrue((directory / '2026-10-03-10.html').is_file())
+            self.assertIn('2026-10-03-10.md', (directory / 'index.md').read_text(encoding='utf-8'))
+
+    def test_publisher_and_renderer_use_numeric_latest_id(self):
+        entries = [('2026-10-03', '2026-10-03-9', 'Old'), ('2026-10-03', '2026-10-03-13', 'New'),
+                   ('2026-09-30', '2026-09-30-8', 'Previous')]
+        self.assertEqual(homepage_entries(entries), publisher.homepage_entries(entries))
+        self.assertEqual(homepage_entries(entries)[0][1], '2026-10-03-13')
+
     def test_weekday_and_citation_title(self):
         record = {
             'id': 13, 'source_latest_hour': '2026-10-03T12:00:00',
