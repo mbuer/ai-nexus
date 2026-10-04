@@ -28,9 +28,9 @@ Birdynator currently supports:
 - model-versioned semantic embeddings
 - memory-aware OpenAI reasoning
 - manual model tiers:
-  - fast: `gpt-5.6-luna`
+  - fast: `gpt-6-luna`
   - default: `gpt-6.1-sol`
-  - deep: `gpt-5.6-sol`
+  - deep: `gpt-6-astra`
 - real BirdNET + weather analysis
 - recent-window versus historical-baseline comparison
 - deterministic daily ranks, species novelty/returns, weather correlations, timing shifts and multi-day trends

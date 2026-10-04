@@ -591,3 +591,21 @@ prose quality. Only Birdynator was rebuilt and restarted; the timer, proxies,
 database and Utility were unchanged. Recovery image/configuration were retained.
 Utility publication remains a separate manual action and is not established
 by this deployment result. The first scheduled daily run remains unverified.
+
+
+## 2026-10-03 — Refresh the explicit fast and deep model tiers
+
+Supersede the retained legacy fast/deep tiers from the Sol 6.1 update. Use
+`gpt-6-luna` for fast tasks, `gpt-6.1-sol` for normal journal analysis and
+conversation, and `gpt-6-astra` for explicitly requested deep work. Keep code
+fallbacks, Quadlet configuration, safe runtime examples and documentation aligned.
+The daily worker remains on the default tier and narrative v3.0 is unchanged.
+Do not add automatic escalation or make another paid analysis merely to install
+this routing change. Preserve the existing Responses endpoint, provider-default
+reasoning, timeouts, search-domain restrictions, proxies and network isolation.
+
+The deployment gate checks all three model IDs against the account catalog,
+runs offline tests and public hygiene, and verifies rootless Birdynator after
+updating its image and Quadlet. Retain the previous image and Quadlet for rollback.
+Catalog presence and offline tests do not certify model output quality; successful
+installation and Git publication require their own operator confirmation.

@@ -116,9 +116,9 @@ Agents should never receive the PostgreSQL superuser credential.
 Birdynator is configured for tiered OpenAI model routing:
 
 ```text
-fast/default-low-cost: gpt-5.6-luna
+fast/default-low-cost: gpt-6-luna
 normal/default:         gpt-6.1-sol
-deep/explicit legacy:   gpt-5.6-sol
+deep/explicit:          gpt-6-astra
 ```
 
 The OpenAI API credential remains a local runtime secret and is never committed to Git.
@@ -229,8 +229,17 @@ The update target applies migrations, rebuilds only Birdynator, restarts it, and
 
 The container build runs `python -m py_compile` so syntax errors fail during image construction instead of at first execution.
 
-The default tier uses GPT-6.1 Sol for analysis and conversation. The fast and
-explicit legacy deep tiers remain unchanged. The container Quadlet sets the
+The default tier uses GPT-6.1 Sol for analysis and conversation. The fast tier uses GPT-6 Luna; the
+explicit deep tier uses GPT-6 Astra. There is no automatic escalation. The container Quadlet sets the
 active model; `birdynator.py` supplies the matching fallback. The example runtime
 file documents the values but is not injected into the agent automatically.
 Verify the running container after applying the update.
+
+
+Model tiers are selected explicitly with `--tier fast`, `--tier default`, or
+`--tier deep` on the analysis or conversation CLI. Omitting the flag selects
+default. The daily worker omits the flag and therefore continues to use Sol 6.1.
+API health verifies the account catalog contains all three configured models;
+that catalog check does not establish generation quality or latency for each.
+The existing Responses requests, provider-default reasoning, request timeouts
+and approved optional search policy are retained.
