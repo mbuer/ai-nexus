@@ -1,5 +1,9 @@
 # AI Nexus
 
+For the historical Journal evaluation and opt-in seven-day candidate, see
+[Journal trial review](docs/journal-trial.md). The accepted default remains
+unchanged; source preparation alone does not activate the trial.
+
 AI Nexus is a secure, reproducible home-lab platform for running isolated AI agents with explicit network, data, secret, and recovery boundaries.
 
 The first real agent is **Birdynator**, a long-term personal bird analyst.

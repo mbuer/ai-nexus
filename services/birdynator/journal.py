@@ -17,11 +17,13 @@ SECTION_NAMES = {
     "today's story": 'todays_story', 'what caught my eye': 'findings',
     'something to watch': 'watching', 'birdynator is watching': 'watching',
     'model surprise': 'model_surprise', 'bird to explore': 'bird_to_explore',
+    'who is changing': 'who_is_changing', 'following up': 'following_up',
     'the recent picture': 'recent_context', 'the rhythm of the day': 'daily_rhythm',
 }
 LABELS = {'todays_story': "Today's story", 'findings': 'What caught my eye',
           'watching': 'Birdynator is watching', 'model_surprise': 'Model surprise',
           'bird_to_explore': 'Bird to explore',
+          'who_is_changing': 'Who is changing', 'following_up': 'Following up',
           'recent_context': 'The recent picture', 'daily_rhythm': 'The rhythm of the day'}
 CSS = """
 :root{color-scheme:light dark;--bg:#f5f3ec;--paper:#fffef9;--ink:#253c33;--muted:#52635a;--line:#d4dacf;--accent:#35664b}
@@ -117,11 +119,14 @@ def report_from_analysis(record, evidence=None, headline=None):
         'bird_to_explore': {'text': sections['bird_to_explore'], 'kind': 'interpretation'} if sections['bird_to_explore'] else None,
         'recent_context': {'text': sections['recent_context'], 'kind': 'interpretation'} if sections['recent_context'] else None,
         'daily_rhythm': {'text': sections['daily_rhythm'], 'kind': 'interpretation'} if sections['daily_rhythm'] else None,
+        'who_is_changing': {'text': sections['who_is_changing'], 'kind': 'interpretation'} if sections['who_is_changing'] else None,
+        'following_up': {'text': sections['following_up'], 'kind': 'interpretation'} if sections['following_up'] else None,
         'charts': ['diversity'] if evidence and re.search(r'\b(species|diversity|variety)\b', story, re.I) else [],
         'evidence': evidence,
         'provenance': {'analysis_id': str(record['id']), 'model': record.get('model'),
                        'source_digest': expected, 'source_latest_hour': str(record['source_latest_hour']),
                        'prompt_version': parameters.get('prompt_version'),
+                       'journal_trial': parameters.get('journal_trial'),
                        'origin': record.get('origin', 'saved analysis; generated interpretation'),
                        'external_context': parameters.get('external_context', {'status': 'disabled'})},
     })
@@ -140,10 +145,10 @@ def validate(report):
         raise ValueError('Expected at most three metrics')
     if not isinstance(report.get('findings'), list) or len(report['findings']) > 2:
         raise ValueError('Expected at most two findings')
-    for item in report['findings'] + [report[k] for k in ('watching', 'model_surprise', 'bird_to_explore', 'recent_context', 'daily_rhythm') if report.get(k)]:
+    for item in report['findings'] + [report[k] for k in ('watching', 'model_surprise', 'bird_to_explore', 'recent_context', 'daily_rhythm', 'who_is_changing', 'following_up') if report.get(k)]:
         if not isinstance(item, dict) or not isinstance(item.get('text'), str):
             raise ValueError('Invalid narrative section')
-    for key, kind in [('watching', 'hypothesis'), ('model_surprise', 'prediction_interpretation'), ('bird_to_explore', 'interpretation'), ('recent_context', 'interpretation'), ('daily_rhythm', 'interpretation')]:
+    for key, kind in [('watching', 'hypothesis'), ('model_surprise', 'prediction_interpretation'), ('bird_to_explore', 'interpretation'), ('recent_context', 'interpretation'), ('daily_rhythm', 'interpretation'), ('who_is_changing', 'interpretation'), ('following_up', 'interpretation')]:
         if report.get(key) and report[key].get('kind') != kind:
             raise ValueError('Incorrect section evidence type')
     if any(item.get('kind') != 'interpretation' for item in report['findings']):
@@ -161,6 +166,12 @@ def validate(report):
         value = evidence['interesting_signals']['observations']['today'][metric]['value']
         if isinstance(item.get('value'), bool) or item.get('value') != value:
             raise ValueError('Metric differs from evidence')
+    trial = report['provenance'].get('journal_trial')
+    if trial:
+        if not isinstance(trial, dict) or trial.get('prompt_version') != report['provenance'].get('prompt_version'):
+            raise ValueError('Trial prompt provenance differs')
+        if trial.get('request') and digest(trial['request']) != trial.get('request_sha256'):
+            raise ValueError('Trial request digest differs')
     return report
 
 
@@ -251,6 +262,8 @@ def document(title, body, archive=False):
 
 def render_html(report):
     validate(report)
+    if report['provenance'].get('journal_trial'):
+        return render_trial_html(report)
     titles = source_titles(report)
     metrics = ''.join(f'<div class="metric"><strong>{m["value"]:g}</strong><span>{html.escape(m["label"])}</span></div>' for m in report['summary_metrics'])
     story = '<section class="card story"><span class="eyebrow">Today’s story</span>' + paragraphs(report['todays_story'], titles) + '</section>'
@@ -278,11 +291,34 @@ def render_html(report):
         f'<pre>{provenance}</pre></details><footer>Birdynator · A personal record of what caught our attention.</footer>')
 
 
+def render_trial_html(report):
+    titles = source_titles(report)
+    sections = [('todays_story', {'text': report['todays_story']})]
+    sections += [(key, report.get(key)) for key in ('who_is_changing', 'following_up')]
+    sections += [('findings', {'text': '\n\n'.join(item['text'] for item in report['findings'])})]
+    sections += [(key, report.get(key)) for key in ('recent_context', 'daily_rhythm', 'bird_to_explore', 'watching', 'model_surprise')]
+    words = sum(len(re.findall(r'\b\w+\b', item['text'])) for _, item in sections if item)
+    body = '<nav><a href="index.html">← Journal archive</a></nav><header><div class="brand">Birdynator · Journal trial</div>'
+    body += f'<p class="date">{display_date(report["date"])} · about {max(1, round(words / 220))} min read</p><h1>{html.escape(report["headline"])}</h1>'
+    body += '<p class="note">Candidate report · awaiting review</p></header>'
+    if report['provenance']['journal_trial'].get('citation_review_needed'):
+        body += '<p class="note">Optional research needs citation review before relying on external context.</p>'
+    for key, item in sections:
+        if item and item['text'].strip():
+            body += f'<section class="story"><h2>{LABELS[key]}</h2>{paragraphs(item["text"], titles)}</section>'
+    # Actual request and source observations remain in structured JSON, not duplicated inline.
+    provenance = dict(report['provenance'])
+    provenance['journal_trial'] = {key: value for key, value in provenance['journal_trial'].items() if key != 'request'}
+    body += '<details><summary>Coverage and provenance</summary><p>Classifier records are not verified individuals. Missing labels do not establish absence; recorder health is unknown. Earlier topics are editorial context, not observations or accepted memory.</p><pre>'
+    body += html.escape(json.dumps(provenance, ensure_ascii=False, indent=2)) + '</pre></details>'
+    return document(report['headline'], body).replace('</style>', 'main{max-width:780px}.story{margin-bottom:38px}.story h2{border-top:1px solid var(--line);padding-top:25px}</style>')
+
+
 def render_markdown(report):
     validate(report)
     parts = [f'# {report["headline"]}', display_date(report['date']), report['provenance']['origin'],
              "## Today's story", report['todays_story']]
-    for key in ('findings', 'recent_context', 'daily_rhythm', 'watching', 'model_surprise', 'bird_to_explore'):
+    for key in ('who_is_changing', 'following_up', 'findings', 'recent_context', 'daily_rhythm', 'bird_to_explore', 'watching', 'model_surprise'):
         items = report[key] if key == 'findings' else [report.get(key)]
         text = '\n\n'.join(i['text'] for i in items if i and i['text'].strip())
         if text:
@@ -327,14 +363,17 @@ def rebuild_index(directory):
     """Build the reading view and logo once after exporting a batch of reports."""
     directory = Path(directory)
     entries = []
+    trial_stems = set()
     for path in directory.glob('*.json'):
         saved = validate(json.loads(path.read_text(encoding='utf-8')))
         expected = f'{saved["date"]}-{saved["provenance"]["analysis_id"]}'
         if path.stem != expected:
             raise ValueError('Journal filename does not match its record')
         entries.append((saved['date'], path.stem, saved['headline']))
+        if saved['provenance'].get('journal_trial'):
+            trial_stems.add(path.stem)
     entries.sort(reverse=True)
-    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in homepage_entries(entries))
+    links = ''.join(f'<article class="entry"><p class="date">{display_date(date)}{" · Journal trial" if stem in trial_stems else ""}</p><h2><a href="{stem}.html">{html.escape(title)}</a></h2><a href="{stem}.md">Markdown</a> · <a href="{stem}.json">Structured report</a></article>' for date, stem, title in homepage_entries(entries))
     logo_path = Path(__file__).resolve().parent / 'birdynator-logo.png'
     logo = ''
     if logo_path.is_file():

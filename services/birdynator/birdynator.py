@@ -302,7 +302,7 @@ def rows_as_dicts(cur):
     return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
-def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25, through=None):
+def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25, through=None, journal_trial=False):
     # top_species is retained for CLI compatibility; evidence must include rare species.
     if not 1 <= recent_hours <= 168 or not 1 <= baseline_days <= 366:
         raise ValueError("hours must be 1..168 and baseline_days 1..366")
@@ -336,7 +336,11 @@ def birdnet_comparison(recent_hours=24, baseline_days=30, top_species=25, throug
                 ORDER BY hour_local, species
                 """, params)
             species = rows_as_dicts(cur)
-    return build_evidence(activity, species, latest_hour, recent_hours, baseline_days)
+    dataset = build_evidence(activity, species, latest_hour, recent_hours, baseline_days)
+    if journal_trial:
+        from journal_trial import extend_evidence
+        dataset = extend_evidence(dataset, activity, species)
+    return dataset
 
 
 def save_analysis(dataset, args, model, result_text, source_digest):
@@ -352,11 +356,13 @@ def save_analysis(dataset, args, model, result_text, source_digest):
         "top_species": args.top_species,
         "tier": args.tier,
         "evidence_version": VERSION,
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": getattr(args, "prompt_version", PROMPT_VERSION),
         "web_enrichment": getattr(args, "web_enrichment", False),
         "external_context": getattr(args, "external_context", {"status": "disabled"}),
         "through": getattr(args, "through", None),
     }
+    if getattr(args, 'trial_metadata', None):
+        parameters['journal_trial'] = args.trial_metadata
     parameters['journal_report'] = report_from_analysis({
         'id': 'pending', 'source_latest_hour': window['latest_hour'],
         'source_digest': source_digest, 'model': model,
@@ -408,14 +414,36 @@ def analysis_history(args):
 
 
 def analyze_birdnet(args):
-    dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species, args.through)
+    trial = bool(getattr(args, 'journal_trial_start', None) or getattr(args, 'journal_trial_end', None))
+    args.prompt_version = PROMPT_VERSION
+    args.trial_metadata = None
+    if trial:
+        from journal_trial import trial_window, payload as trial_payload, prior_topics, POLICY_VERSION
+        from journal_trial import PROMPT_VERSION as TRIAL_PROMPT
+        if not trial_window(args.journal_trial_start, args.journal_trial_end):
+            raise ValueError('Trial is outside its approved dates; no model request')
+        if args.through or args.hours != 24 or args.baseline_days != 30 or args.tier != 'default':
+            raise ValueError('Live trial requires current 24h/30d default-tier analysis')
+        dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species, args.through, journal_trial=True)
+    else:
+        dataset = birdnet_comparison(args.hours, args.baseline_days, args.top_species, args.through)
     model = model_for_tier(args.tier)
     request_payload, context = analysis_payload(dataset, model)
     source_digest = hashlib.sha256(context.encode()).hexdigest()
+    if trial:
+        if model != 'gpt-6.1-sol':
+            raise ValueError('Reviewed trial requires the Sol 6.1 default model')
+        with connect() as connection:
+            topics = prior_topics(connection, dataset['window']['latest_hour'])
+        request_payload = trial_payload(dataset, model, topics)
+        args.prompt_version = TRIAL_PROMPT
+        args.trial_metadata = {'policy_version': POLICY_VERSION, 'prompt_version': TRIAL_PROMPT,
+                               'start': args.journal_trial_start, 'end': args.journal_trial_end,
+                               'editorial_context': topics, 'status': 'candidate; human review pending'}
     if args.evidence_only:
         print(json.dumps(dataset, indent=2, sort_keys=True))
         return
-    print(f"Journal prompt: {PROMPT_VERSION}; evidence through {dataset['window']['latest_hour']}", file=sys.stderr)
+    print(f"Journal prompt: {args.prompt_version}; evidence through {dataset['window']['latest_hour']}", file=sys.stderr)
     use_web = getattr(args, "web_enrichment", False)
     args.external_context = {"status": "disabled"}
 
@@ -430,7 +458,21 @@ def analyze_birdnet(args):
             raise RuntimeError("OpenAI analysis did not complete; no result saved")
         return result
 
-    if use_web:
+    if trial:
+        body = enable_search(request_payload) if use_web else request_payload
+        args.trial_metadata['request_sha256'] = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+        args.trial_metadata['request'] = body
+        data = request_report(body)  # Exactly one provider attempt; no trial fallback call.
+        args.trial_metadata['response_id'] = data.get('id')
+        args.trial_metadata['usage'] = data.get('usage')
+        if use_web:
+            result_text, args.external_context = cited_report(data)
+            args.trial_metadata['citation_review_needed'] = bool(
+                not args.external_context.get('search_calls') or not args.external_context.get('cited_sources'))
+        else:
+            result_text = openai_text(data)
+    elif use_web:
         try:
             data = request_report(enable_search(request_payload))
         except HTTPError as error:
@@ -461,7 +503,7 @@ def analyze_birdnet(args):
         report = report_from_analysis({
             'id': analysis_id, 'source_latest_hour': dataset['window']['latest_hour'],
             'source_digest': source_digest, 'model': model, 'result_text': result_text,
-            'parameters': {'prompt_version': PROMPT_VERSION, 'external_context': args.external_context},
+            'parameters': {'prompt_version': args.prompt_version, 'external_context': args.external_context, 'journal_trial': args.trial_metadata},
         }, dataset)
         print(f"[journal exported: {export_journal(report, args.journal_output)}]")
     print(result_text)
@@ -526,6 +568,8 @@ def main():
                                 help="optional domain-restricted provider-hosted species search")
     analyze_parser.add_argument("--evidence-only", action="store_true",
                                 help="print deterministic evidence without OpenAI or persistence")
+    analyze_parser.add_argument("--journal-trial-start", help="explicit seven-day trial start, Pacific YYYY-MM-DD")
+    analyze_parser.add_argument("--journal-trial-end", help="explicit trial end; outside dates no trial request is allowed")
     analyze_parser.add_argument("--tier", choices=("fast", "default", "deep"), default="default")
 
     history_parser = sub.add_parser("analysis-history")

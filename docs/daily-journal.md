@@ -45,6 +45,13 @@ stored password or unattended publication account is introduced.
 
 ## Generation at 9 p.m. Pacific
 
+An optional [seven-day Journal candidate](journal-trial.md) can replace the normal
+daily prompt for explicitly approved future dates. It does not add another daily
+run or change this schedule. Its private policy expires automatically; the accepted
+baseline resumes without human action. The candidate configuration helper changes
+only the known worker and private policy, keeps recovery copies, and starts no job.
+It is prepared source, not evidence that a live trial has been installed.
+
 The installed user timer runs at **21:00 America/Los_Angeles**. This is a fixed evening
 time, not a measured sunset or a guarantee that every bird is asleep. It summarizes
 the latest available rolling 24 hours against the preceding 30-day baseline,

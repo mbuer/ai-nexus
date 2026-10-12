@@ -1,6 +1,6 @@
 """One daily analysis through the existing isolated agent; no publishing or automatic retries."""
 import argparse
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
@@ -37,6 +37,18 @@ def save_receipt(path, packet):
     temporary.replace(path)
 
 
+def trial_policy(config, day):
+    candidate = config.get('journal_trial')
+    if candidate is None:
+        return None
+    if not isinstance(candidate, dict) or set(candidate) != {'start', 'end', 'prompt_version'}:
+        raise ValueError('Invalid journal trial policy')
+    first, last = date.fromisoformat(candidate['start']), date.fromisoformat(candidate['end'])
+    if last - first != timedelta(days=6) or candidate['prompt_version'] != 'birdynator-narrative-v3.2-trial':
+        raise ValueError('Unrecognized seven-day journal trial policy')
+    return candidate if first <= date.fromisoformat(day) <= last else None
+
+
 def generate(config, state, now=None):
     timezone = config['timezone']
     zone = ZoneInfo(timezone)
@@ -45,6 +57,7 @@ def generate(config, state, now=None):
     if day < config['not_before']:
         print('Daily generation starts ' + config['not_before'] + '; no report requested.')
         return 'not_started'
+    policy = trial_policy(config, day)
     existing = latest_today(day, timezone)
     receipt = state / (day + '.json')
     if existing:
@@ -55,9 +68,12 @@ def generate(config, state, now=None):
         print('An attempt is already recorded for today. Inspect logs; no automatic retry.')
         return 'already_attempted'
     packet = {'date': day, 'status': 'started', 'attempted_at': now.isoformat()}
+    packet['journal_trial'] = policy
     save_receipt(receipt, packet)
     command = ['podman', 'exec', 'agent-birdynator', 'python', '/app/birdynator.py',
                'analyze-birdnet', '--hours', '24', '--baseline-days', '30']
+    if policy:
+        command += ['--journal-trial-start', policy['start'], '--journal-trial-end', policy['end']]
     if config.get('web_enrichment', True):
         command.append('--web-enrichment')
     try:

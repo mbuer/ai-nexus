@@ -1,5 +1,54 @@
 # Decision Log
 
+## 2026-10-12 — Prepare an offline species-history Journal review
+
+After a week of real journals, prioritize developing species-level stories,
+editorial continuity and reading quality over repeated aggregate ranks or isolated
+novelty. Prepare a separately versioned offline review kit using exact saved
+analysis IDs, evidence digests and cutoffs. Request fuller stories only when there
+is useful distinct evidence; include quiet and uncertain days in the assessment.
+
+The prototype derives matched-window species summaries only from supplied source
+snapshots, leaves no-record effort unknown, treats selection thresholds as
+editorial heuristics, and uses previous topic identifiers as editorial context
+rather than source truth. It has no database, model or network side effects.
+Static layout previews retain original prose and are labeled accordingly.
+
+This is preparation, not approval or implementation of the live seven-day trial.
+Historical model replay, runtime integration, time-bounded rollout, Git commits
+and pushes require their own operator-approved gates. Feedback collection and a
+separate editorial store remain proposals. No automatic prompt adjustment,
+retraining, canonical-memory promotion, infrastructure or Grafana change.
+See [Journal trial](journal-trial.md) for the evaluation and rollback requirements.
+
+## 2026-10-12 — Prepare an expiring species-history reading candidate
+
+The operator completed the authorized October 5, 8 and 11 historical replay.
+Original evidence digests were reproduced from the exported two-view snapshot.
+The reader likes the fuller October 8 account but wants less repeated qualification
+and editorial scaffolding. Preserve v3.1 replay inputs/results and prepare v3.2
+with no word quota, distinct optional sections and a single reading column.
+
+Keep narrative v3.0 as the default. An explicit future seven-date policy selects
+one trial daily attempt, then automatically returns to the baseline. Keep the
+existing generation lock, saved-today check and no-ambiguous-retry receipt. Trial
+requests have no fallback model call. Store species history in source evidence;
+store earlier explore-topic hints separately in request provenance, never memory.
+Retain actual request/prompt/model identity and label trial publication clearly.
+
+Prepare a configuration helper that checks the running candidate and known worker
+hash, retains recovery copies, and changes only the worker and private trial policy.
+The existing timer schedule and platform security boundaries remain unchanged.
+This records prepared implementation, not deployment, publication or acceptance.
+The operator subsequently approved read-only live inspection. It confirmed the
+clean consolidated baseline, all fifteen candidate base-file hashes, the running
+application/renderer, and the installed worker receipt. The operator then approved
+one coherent commit/push, a code-only Birdynator update, Windows renderer alignment,
+and trial activation for October 13-19 at the existing 21:00 Pacific schedule.
+Baseline resumes October 20. No extra installation-time analysis is authorized.
+Successful deployment still needs its own operator result. Feedback submission and
+a richer topic ledger remain deferred.
+
 ## 2026-09-29 — Birdynator analysis v2 within existing boundaries
 
 Derive selective, deterministic evidence from the existing read-only activity
