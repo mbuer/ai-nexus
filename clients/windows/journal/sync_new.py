@@ -83,7 +83,7 @@ def ssh_json(host, command, code):
     return json.loads(result.stdout)
 
 
-def sync(ai_host, utility_host, private):
+def sync(ai_host, utility_host, private, feedback_enabled=False):
     private = Path(private)
     private.mkdir(parents=True, exist_ok=True)
     print('Reading Utility archive IDs; no model request will be made.', flush=True)
@@ -102,7 +102,8 @@ def sync(ai_host, utility_host, private):
         for record in records:
             (private / ('analysis-' + str(record['id']) + '.json')).write_text(
                 json.dumps(record, ensure_ascii=False), encoding='utf-8')
-            export(report_from_analysis(record), pages, update_index=False)
+            options = {'feedback_record': record} if feedback_enabled else {}
+            export(report_from_analysis(record), pages, update_index=False, **options)
         rebuild_index(pages)
         manifest = batch / 'manifest.json'
         packet = build(pages)
@@ -132,11 +133,12 @@ def main():
     parser.add_argument('--ai-host', required=True)
     parser.add_argument('--utility-host', required=True)
     parser.add_argument('--private', type=Path, required=True)
+    parser.add_argument('--feedback-enabled', action='store_true')
     args = parser.parse_args()
     for host in (args.ai_host, args.utility_host):
         if not re.fullmatch(r'[A-Za-z0-9_.@:-]+', host) or host.startswith('-'):
             raise ValueError('Invalid SSH host')
-    sync(args.ai_host, args.utility_host, args.private)
+    sync(args.ai_host, args.utility_host, args.private, feedback_enabled=args.feedback_enabled)
 
 
 if __name__ == '__main__':

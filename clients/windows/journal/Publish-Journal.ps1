@@ -7,7 +7,8 @@ param(
     [string]$PythonExe,
     [string]$Headline,
     [switch]$ReadOnly,
-    [switch]$SyncNew
+    [switch]$SyncNew,
+    [switch]$FeedbackEnabled
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +35,9 @@ $renderer = Join-Path $repoRoot 'services/birdynator/journal.py'
 $publisher = Join-Path $repoRoot 'deploy/journal-host/publish_utility.py'
 $privateDir = Join-Path $PSScriptRoot 'private'
 if ($SyncNew) {
-    & $PythonExe -B (Join-Path $PSScriptRoot 'sync_new.py') --ai-host $AiHost --utility-host $UtilityHost --private $privateDir
+    $journalSyncArguments = @('-B', (Join-Path $PSScriptRoot 'sync_new.py'), '--ai-host', $AiHost, '--utility-host', $UtilityHost, '--private', $privateDir)
+    if ($FeedbackEnabled) { $journalSyncArguments += '--feedback-enabled' }
+    & $PythonExe @journalSyncArguments
     if ($LASTEXITCODE -ne 0) { throw 'Sync stopped. Completed prior batches remain published; inspect the error before retrying.' }
     if ($JournalUrl) { Write-Host $JournalUrl }
     return
@@ -84,6 +87,7 @@ if ($ReadOnly) {
 Write-Host 'Rendering the saved report locally. Charts require matching saved evidence.'
 $renderArgs = @('-B', $renderer, $recordPath, '--output', $journalDir)
 if ($Headline) { $renderArgs += @('--headline', $Headline) }
+if ($FeedbackEnabled) { $renderArgs += '--feedback-enabled' }
 & $PythonExe @renderArgs
 if ($LASTEXITCODE -ne 0) { throw 'Local journal rendering failed; nothing uploaded.' }
 & $PythonExe -B (Join-Path $PSScriptRoot 'prepare_upload.py') $journalDir $manifestPath

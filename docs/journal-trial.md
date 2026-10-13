@@ -2,13 +2,16 @@
 
 ## Status
 
-Prepared locally and approved for one coherent commit/publication and a live trial
-on October 13-19, 2026, at the existing 21:00 Pacific schedule. The October 12
-inspection confirmed the clean baseline checkout and its installed worker/container.
-This source snapshot does not record completed deployment or permanent acceptance.
-Source preparation and approval alone do not activate the candidate. Baseline
-narrative v3.0 remains the default and resumes October 20 after the approved window.
-Do not describe original prose in a layout preview as a revised model result.
+The approved trial source was committed and pushed as `415eda0`, installed on AI
+Nexus, and configured for October 13–19, 2026 at 21:00 Pacific. The October 12
+repository inspection confirmed that clean source revision. Baseline narrative
+v3.0 remains the default outside that window and resumes October 20. Trial
+installation is not permanent acceptance; promotion requires a later review.
+
+The three historical replays are evaluation artifacts. Manual candidate analysis
+23 was generated and published separately, without moving the trial window.
+See [release notes](birdynator-releases.md) and [feedback](journal-feedback.md)
+for the later Utility collection feature and its pending AI import.
 
 ## Product goal
 
@@ -205,8 +208,9 @@ sync. Trial pages and their homepage entries are labeled `Journal trial`; overvi
 labels contain no analysis numbers. Pages put useful species comparisons after
 the lead, followed by follow-up, discoveries, cited species context and a useful
 question. Provenance is collapsed; actual API payload remains in structured JSON.
-There is no mandatory diversity chart, writable endpoint or feedback panel.
-Utility needs only the usual static release publication, with no service/CSP change.
+The trial itself adds no mandatory diversity chart or writable endpoint. A later,
+separately approved [feedback feature](journal-feedback.md) adds an opt-in panel
+and restricted HTTPS collection on Utility; it is not a trial requirement.
 Latest-ID-per-source-date selection remains unchanged; trial publication is therefore
 an explicit reading experiment, not a declaration of production acceptance.
 
@@ -217,12 +221,11 @@ promote its prompt, generated hypotheses or editorial context.
 
 ## Feedback and memory boundaries
 
-No feedback submission is implemented in the preview. First use a manual review
-record or locally saved feedback file, tied to analysis ID, model/prompt version,
-evidence digest and optional section. A separate editorial store and explicit
-Windows transfer/import are proposals. Never assume Utility may accept writes or
-that a new public endpoint is permitted. Client scripting or CSP changes require
-a reviewed design as well; local storage alone does not make a design approved.
+The offline trial preview has no feedback submission. Subsequently approved
+Utility collection attaches reviews to exact analysis, model/prompt version,
+evidence and narrative identity, with optional section feedback. AI import remains
+a proposal. See [feedback](journal-feedback.md) for installed scope and pending
+transport, and [release notes](birdynator-releases.md) for source status.
 
 Source observations remain in BirdNET. Generated reports/hypotheses remain in
 `analysis_runs`. Feedback/preferences stay in a separate editorial record.

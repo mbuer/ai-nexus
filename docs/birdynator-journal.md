@@ -3,16 +3,18 @@
 Journal v1 creates mobile-first HTML with inline CSS, Markdown, structured JSON
 and a static archive index. The generator is offline. A separate manual Windows
 publishing workflow delivers completed files to a LAN-only nginx service on Utility.
-The browser loads the logo from that same server; the Journal has no browser scripts
-or third-party assets. Opening a cited source is a reader's separate navigation.
+Reading pages use same-server assets. Opt-in feedback adds a reviewed same-origin
+script and authenticated API on HTTPS; it does not enable third-party scripts.
+Opening a cited source is a reader's separate navigation.
 Grafana and the existing AI isolation boundaries remain unchanged.
 
 ## Current status and source ownership
 
-October 3 operator results confirm permanent narrative v2.8 installation, saved
-Journal reports and a successful Utility publication. The v2.9 longer-story prompt
-was a temporary trial used for analysis 13. See the dated
-[status record](../README.md#journal-status--october-3-2026) for verification scope.
+The baseline narrative is v3.0 with GPT-6.1 Sol. The approved October 13–19
+v3.2-trial adds species-history stories and recent-topic awareness; baseline resumes
+October 20. Utility HTTPS and personal feedback collection are operator-confirmed,
+but AI feedback import is not installed. [Release notes](birdynator-releases.md)
+separate repository identity, prompt selection and independently deployed components.
 
 The authoritative adapter, renderer and final logo are in `services/birdynator/`.
 The Windows client is in [clients/windows/journal](../clients/windows/journal/README.md);
@@ -206,8 +208,8 @@ No fresh live verification was performed while updating this documentation.
 The [daily workflow](daily-journal.md) adds a 9 p.m. Pacific user timer on AI Nexus
 and a manually triggered -SyncNew mode on Windows. Operator results confirmed
 the timer enabled and active on October 3, with an October 4 start guard.
-The first eligible generation is October 4 at 21:00 Pacific; a completed scheduled
-analysis has not yet been verified. Utility publication of the latest-per-date
+Saved reports from October 5–11 were subsequently inspected and their evidence
+reproduced for historical replay; see the [trial review](journal-trial.md). Utility publication of the latest-per-date
 homepage succeeded, retaining earlier reports. Publication remains manual.
 
 ## Fuller narrative with optional context (v3.0 source update)
@@ -229,3 +231,19 @@ Review one fresh saved analysis after runtime verification before publication.
 Operator confirmation: narrative v3.0 and GPT-6.1 Sol are installed. All 60
 host tests and Birdynator security checks passed; saved analysis 14 includes
 the optional timing section. Utility publication needs separate verification.
+# Explicit manual candidate preview
+
+The prepared workstation helper can invoke the installed candidate once for an
+approved current Pacific date without editing its prompt, image or daily policy.
+It uses the existing guarded trial-analysis path, with current 24-hour/30-day
+evidence and the Sol 6.1 default. Before saving, it replaces scheduling metadata
+with `journal-manual-preview-v1`, a manual date and the unchanged scheduled trial
+dates. The prompt version, exact request, evidence and response provenance remain.
+This record is an additional candidate analysis, not a promoted default or a new
+seven-day schedule. Editorial context remains separate from source evidence.
+
+The Windows launcher records its attempt before the paid call and never retries
+automatically. It shows SSH output directly and does not publish or capture secrets.
+After success, publish the exact returned analysis ID with the opt-in feedback UI.
+If SSH/provider/persistence fails ambiguously, inspect history before authorizing
+another attempt. No Git, timer, image, datasource or memory change is needed.

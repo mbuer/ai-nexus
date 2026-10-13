@@ -1,5 +1,24 @@
 # Decision Log
 
+## 2026-10-12 — Confirm personal collection and quarantine unapproved import SQL
+
+Operator results confirm Utility HTTPS, personal login, private feedback queue and
+account-status UI. The operator confirms the workflow on PC and Android. Report23
+is an explicitly approved manual candidate preview; the scheduled trial window
+and AI isolation remain unchanged. Reviews are stored on Utility; AI import is
+still unvalidated and not installed. No automatic learning or memory promotion.
+
+Keep the proposed import SQL outside automatic migrations until disposable-database
+validation and explicit schema approval. Local cleanup reduces repeated browser
+requests and reading-export duplication while preserving complete structured
+provenance and legacy compatibility. It removes a redundant nginx example and
+stale operational descriptions, preserving recovery packages and private records.
+The operator subsequently deployed the Utility/client cleanup successfully, with
+queue and credentials preserved and no AI or SQL change. Source publication remains
+pending. Release notes record features separately from host deployment receipts.
+
+See [feedback](journal-feedback.md) and [login recovery](journal-feedback-recovery.md).
+
 ## 2026-10-12 — Prepare an offline species-history Journal review
 
 After a week of real journals, prioritize developing species-level stories,

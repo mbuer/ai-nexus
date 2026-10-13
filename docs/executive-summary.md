@@ -1,235 +1,74 @@
-# Executive Summary
+# How AI Nexus fits together
 
-## What AI Nexus is
+Birdynator reads a backyard's recorded history and turns it into something worth
+reading in the evening. AI Nexus supplies the bounded execution environment. The
+Journal is the reader-facing result, hosted separately on Utility.
 
-AI Nexus is a security-focused home-lab platform for running AI agents without giving them broad trust in the host, home LAN, Internet, or supporting databases.
+## Observations become comparisons, then interpretation
 
-The project is designed around four ideas:
+BirdNET remains the authoritative datasource. A read-only database role and a
+fixed-destination proxy let Birdynator read approved views without general LAN
+access. Deterministic calculations compare matching hours and each species' own
+history. The model then interprets those comparisons; optional trusted-source
+research supplies natural-history context, not new local observations.
 
-1. **Containment** — agents run rootless, without host-published ports, behind explicit network boundaries.
-2. **Least privilege** — each capability is granted narrowly: memory DB, embedding service, OpenAI API, and BirdNET source access are separate paths.
-3. **Reproducibility** — runtime definitions, migrations, build scripts, and decisions live in Git.
-4. **Recoverability and provenance** — persistent state is backed up, restores are tested, and generated analysis keeps enough source metadata to be reviewed later.
+A saved analysis retains its model, prompt, evidence and provenance. This makes
+historical replay possible and lets a reader question an interpretation without
+losing the original report. Unknown recorder coverage and uncertain classifier
+identifications still limit what can be concluded.
 
-## What we built
+Read [analysis](birdynator-analysis.md) for the evidence and
+[the trial](journal-trial.md) for comparison before promotion.
 
-### Secure host and network boundary
+## A capability is a narrow permission
 
-AI Nexus runs as a dedicated Debian VM behind OPNsense. Management is through WireGuard. The Debian host also has a default-drop inbound/forward nftables policy as defense in depth.
+Rootless Podman runs Birdynator without a public host port. Its own PostgreSQL
+and embedding service use internal networks. OpenAI requests pass through an
+allowlisted CONNECT proxy; BirdNET queries use a separate datasource proxy.
+OPNsense controls routed AI traffic, WireGuard carries management, and host
+nftables adds defense in depth. Each path can be tested without granting all the
+others. The AI segment intentionally has no IPv6 path.
 
-Read:
+[Architecture](architecture.md), [network](network.md) and
+[agent runtime](agent-runtime.md) explain those boundaries and their configuration.
 
-- [Architecture](architecture.md)
-- [Network](network.md)
-- [Security baseline](security-baseline.md)
+## The reader does not need access to the agent
 
-### Rootless agent runtime
+Windows reads saved reports through the existing WireGuard SSH path, renders them
+locally and uploads a completed release to Utility over a separate LAN SSH path.
+Publication makes no new model request. nginx serves the Journal; Utility gains
+no connection to AI Nexus. Previous releases allow content rollback.
 
-Rootless Podman and Quadlet/systemd run Birdynator and its supporting services. PostgreSQL is internal-only, secrets are mounted through Podman secrets, and runtime containers use resource limits and read-only filesystems where practical.
+HTTPS protects a personal review login on Windows and Android. Reviews are saved
+centrally on Utility, so different browsers see the same history. The proposed
+Windows return transport and AI editorial store remain unfinished. Collection is
+working; automated improvement is not installed.
 
-Read:
+Read [the Journal's journey](birdynator-journal.md),
+[feedback](journal-feedback.md) and [HTTPS maintenance](journal-https-plan.md).
 
-- [Agent runtime](agent-runtime.md)
-- [Reproducible runtime](reproducible-runtime.md)
+## Different records deserve different trust
 
-### Long-term agent memory
+Source observations stay in BirdNET. Generated reports and hypotheses live in
+`analysis_runs`. Editorial reviews express preferences in a separate store.
+Canonical `memory` contains explicitly accepted durable knowledge with provenance.
+Neither a model summary nor a reader rating is automatically promoted into it.
 
-Birdynator has a dedicated PostgreSQL login role while schema ownership belongs to a separate NOLOGIN role.
+The baseline is narrative v3.0 with GPT-6.1 Sol. The approved October 13–19
+species-history trial emphasizes developing patterns and recent-story awareness;
+previous topics guide editorial continuity, not biological evidence. The baseline
+resumes October 20 unless a later reviewed decision changes it.
 
-Canonical memory is kept independent from the embedding model. Embeddings are versioned separately, which makes future model changes possible without redefining the authoritative memory record.
+See [release status](birdynator-releases.md) for features and source identity.
 
-Read:
+## Recovery is part of the design
 
-- [Agent runtime](agent-runtime.md)
-- [Embedding service](embedding-service.md)
+A fresh PostgreSQL logical dump must succeed before the Proxmox VM backup proceeds.
+Logical restores have been tested; VM and database backups serve different recovery
+needs. Utility release retention helps with publication mistakes, while its private
+review queue still needs an established off-VM backup cadence and restore check.
 
-### Controlled OpenAI reasoning
-
-Birdynator does not receive normal Internet access. OpenAI requests go through a dedicated CONNECT proxy that allows only the approved OpenAI API destination while preserving end-to-end TLS.
-
-The API request uses `store: false`.
-
-### Read-only BirdNET datasource
-
-BirdNET remains an authoritative external datasource rather than being copied into agent memory.
-
-Birdynator connects using:
-
-```text
-Birdynator
-  -> private datasource link
-  -> fixed-destination BirdNET proxy
-  -> BirdNET PostgreSQL
-```
-
-The PostgreSQL role is read-only, and the narrow proxy avoids granting the agent general LAN access merely to query its datasource.
-
-Read:
-
-- [Birdynator analysis](birdynator-analysis.md)
-- [Architecture](architecture.md)
-
-### Historical bird analysis
-
-The default analysis compares:
-
-- latest 24 hours
-- preceding 30-day baseline
-
-The v2 reasoning context separates measured observations, exploratory correlations,
-unconfirmed hypotheses and optional experimental predictions. Deterministic
-derivation provides daily ranks, new/returning species, unusual clock hours,
-sunrise-relative shifts, multi-day trends and weather relationships. Calendar-day
-comparisons use matching clock hours and report actual sample sizes.
-
-The narrative develops one main story and at most two additional discoveries,
-with a concrete question to revisit and a locally selected bird to explore.
-Evidence-rich days target 400-600 words; quiet days can be shorter. Historical
-replay uses an explicit cutoff, and evidence-only inspection makes no model call.
-External enrichment is opt-in through provider-hosted search; live ML integration remains deferred. Archive replay can
-optionally inspect experimental forecasts.
-
-The September 2026 deployment of evidence v2.1 and prompt v2.2 succeeded. Eighteen regression tests,
-repository checks and full runtime verification passed in operator-provided logs.
-The historical model run persisted successfully, but generated prose still
-requires review: it incorrectly described unique first-place ranks as tied.
-This is a model-output limitation, not a failure of the computed rankings.
-
-Read:
-
-- [Birdynator analysis](birdynator-analysis.md)
-
-### Evening Journal
-
-The Journal turns a saved analysis into static HTML, Markdown and a structured
-report. A manually triggered Windows publisher reads the chosen run through the
-existing WireGuard management path, renders it locally, then uploads the completed
-files to a separate LAN web host. Utility serves the pages without gaining access
-to the AI bridge. The operator has published the green logo, source titles and
-weekday dates through this workflow.
-
-The installed narrative is v2.8 according to October 3 operator deployment results;
-v2.9 was a temporary longer-story trial. Publisher and UI sources are integrated
-in this repository update; live deployment and Git publication remain separate. See the dated
-[current status](../README.md#journal-status--october-3-2026) and the
-[Journal explanation](birdynator-journal.md) before attempting reconstruction.
-
-### Analysis history and provenance
-
-Successful analyses are saved locally in the Birdynator database in `analysis_runs`.
-
-Each run records:
-
-- model used
-- source window
-- analysis parameters
-- source reference
-- SHA-256 digest of the exact reasoning context
-- generated analysis
-- timestamp
-
-The raw BirdNET dataset is not duplicated.
-
-### Backup and recovery
-
-PostgreSQL logical backup and restore have been tested, and the full recovery chain has been verified end to end:
-
-```text
-fresh logical PostgreSQL dump
-        ->
-Proxmox VM snapshot backup
-        ->
-external backup storage
-```
-
-The VM backup is deliberately aborted if the fresh logical database backup fails. VM snapshots/backups and logical database backups remain complementary recovery mechanisms.
-
-Read:
-
-- [Backup and recovery](backup-recovery.md)
-- [Proxmox backup hook](proxmox-backup-hook.md)
-
-## Day-to-day commands
-
-Update Birdynator after pulling normal code changes:
-
-```bash
-git pull
-make birdynator-update
-```
-
-Run the normal 24h-versus-30d analysis:
-
-```bash
-podman exec agent-birdynator \
-  python /app/birdynator.py analyze-birdnet
-```
-
-List previous analyses:
-
-```bash
-podman exec agent-birdynator \
-  python /app/birdynator.py analysis-history
-```
-
-Run the full runtime verification:
-
-```bash
-make verify
-```
-
-For offline evidence tests and repository hygiene, run `make test` and `make repo-check`. See [Repository workflow](repository-workflow.md) before publishing changes from a deployment or review checkout.
-
-Test database recovery:
-
-```bash
-make restore-test
-```
-
-## Why the architecture matters
-
-The agent is useful because it can combine history, source data, and model reasoning.
-
-The platform is safer because those capabilities are deliberately **not** delivered as one broad permission.
-
-Birdynator can:
-
-- read its approved BirdNET datasource
-- read/write its own durable state
-- call the approved OpenAI endpoint
-- use the local embedding service
-
-but each path is independently constrained and observable.
-
-That separation is the core of AI Nexus.
-
-## Reading in the evenings
-
-Start with [the Journal's journey](birdynator-journal.md#from-observation-to-evening-page)
-for one connected account of data, interpretation, transport and publication.
-Then read [Architecture](architecture.md) and [Security baseline](security-baseline.md)
-to understand why each boundary exists. [Backup and recovery](backup-recovery.md)
-explains what survives a failure; the [decision log](decisions.md) records how the
-design developed. These existing pages are complementary chapters, not competing
-copies of the same instructions.
-
-## Recommended reading order
-
-1. [README](../README.md)
-2. [Architecture](architecture.md)
-3. [Birdynator analysis](birdynator-analysis.md)
-4. [Agent runtime](agent-runtime.md)
-5. [Decision log](decisions.md)
-6. [Backup and recovery](backup-recovery.md)
-7. [Network](network.md)
-8. [Security baseline](security-baseline.md)
-9. [SSH troubleshooting](ssh-troubleshooting.md)
-10. [Repository workflow](repository-workflow.md)
-
-## Open management reliability issue
-
-Intermittent SSH resets remain unresolved despite periods of normal operation.
-Separate Home/Away peers and the existing network isolation remain the intended
-architecture. Preserve and correlate a failing connection before changing settings;
-the [investigation record](ssh-troubleshooting.md) distinguishes past experiments,
-observations, hypotheses and the next evidence to collect.
+[Backup and recovery](backup-recovery.md) explains the chain. The
+[decision log](decisions.md) explains how it developed. For practical work, use
+[repository workflow](repository-workflow.md); for rebuilding, use
+[reproducible runtime](reproducible-runtime.md).

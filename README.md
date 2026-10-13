@@ -1,239 +1,78 @@
 # AI Nexus
 
-For the historical Journal evaluation and opt-in seven-day candidate, see
-[Journal trial review](docs/journal-trial.md). The accepted default remains
-unchanged; source preparation alone does not activate the trial.
+AI Nexus runs isolated AI agents in a home lab. Its first agent, **Birdynator**,
+turns BirdNET observations into an evening Journal: what changed, which species
+account for it, and what is worth watching next.
 
-AI Nexus is a secure, reproducible home-lab platform for running isolated AI agents with explicit network, data, secret, and recovery boundaries.
+The useful distinction is between observations and interpretation. BirdNET owns
+the source observations; Birdynator computes comparisons and saves its generated
+reports separately. A classifier label or an interesting story is not automatically
+an accepted fact.
 
-The first real agent is **Birdynator**, a long-term personal bird analyst.
+## Current state
 
-## Current platform
+The October 12 repository inspection confirmed a clean AI Nexus checkout at
+`415eda0`. The baseline Journal prompt is `birdynator-narrative-v3.0`, using
+`gpt-6.1-sol`. An approved species-history trial uses v3.2-trial from October
+13–19 at the existing 21:00 Pacific schedule; the baseline resumes October 20.
+Publication to the Journal remains manually triggered from Windows.
 
-- Debian 13 VM on Proxmox
-- OPNsense as the AI segment gateway, DNS, NAT, firewall, and egress-policy point
-- WireGuard-only management path
-- host nftables defense in depth
-- rootless Podman + Quadlet/systemd
-- PostgreSQL 17 + pgvector for durable agent state
-- local 384-dimensional embedding service
-- controlled OpenAI API access through a dedicated CONNECT proxy
-- read-only BirdNET PostgreSQL access through a separate fixed-destination datasource proxy
-- upstream BirdNET station-health provenance is now persisted and runtime-verified on the Infra side
-- logical PostgreSQL backup + verified restore workflow
+Utility's HTTPS reading site and personal feedback queue are installed and
+operator-tested on Windows and Android. Their source is prepared in this update;
+AI Nexus feedback import and PostgreSQL schema are **not installed**. Reviews do
+not automatically change prompts, train models or enter canonical memory.
 
-Exact live addresses and credentials are intentionally excluded from this public repository.
+See [Birdynator releases](docs/birdynator-releases.md) for release identity,
+features and the distinction between Git, installed code and prompt versions.
 
-## Birdynator
+## Read an evening chapter
 
-Birdynator currently supports:
+| Start with | What it explains |
+| --- | --- |
+| [Project overview](docs/executive-summary.md) | How the pieces fit together and why they are separate |
+| [The Journal's journey](docs/birdynator-journal.md) | From a recorded observation to the page you read |
+| [Analysis](docs/birdynator-analysis.md) and [trial](docs/journal-trial.md) | Comparisons, uncertainty and evaluating better stories |
+| [Reader feedback](docs/journal-feedback.md) | Saving reviews today and the proposed improvement cycle |
+| [Architecture](docs/architecture.md) and [security](docs/security-baseline.md) | Where trust is granted and enforced |
+| [Recovery](docs/backup-recovery.md) | What survives failure and how restoration is checked |
 
-- structured canonical memory with provenance and lifecycle fields
-- model-versioned semantic embeddings
-- memory-aware OpenAI reasoning
-- manual model tiers:
-  - fast: `gpt-6-luna`
-  - default: `gpt-6.1-sol`
-  - deep: `gpt-6-astra`
-- real BirdNET + weather analysis
-- recent-window versus historical-baseline comparison
-- deterministic daily ranks, species novelty/returns, weather correlations, timing shifts and multi-day trends
-- narrative-first analysis with separate observations, correlations, hypotheses and optional archive ML surprises
-- cutoff-based historical replay and evidence-only inspection without an API call
-- persisted analysis history with source-window provenance and a source-context digest
+Each chapter links to implementation and operating details. The
+[decision log](docs/decisions.md) preserves dated reasoning; older entries describe
+their own point in time rather than overriding current status.
 
-Default BirdNET analysis compares the latest 24 hours with the preceding 30-day baseline.
+## Where the implementation lives
 
-See [Birdynator analysis](docs/birdynator-analysis.md).
+- `services/birdynator/`: evidence, prompts, analysis persistence and shared renderer.
+- `services/journal_feedback/`: Utility collection, review contract and proposed importer.
+- `clients/windows/journal/`: manual publication and local certificate preparation.
+- `deploy/journal-host/`: Utility nginx, HTTPS and feedback service installation.
+- `containers/`, `scripts/`, `migrations/`: AI Nexus runtime and operating workflows.
+- `proposals/`: designs awaiting validation and approval; not automatic migrations.
+- `tests/`: offline regression checks; live verification is a separate operation.
 
-Evidence v2.1 and narrative prompt v2.2 were deployed and runtime-verified in September 2026. Generated prose remains reviewable interpretation; the documented tie-wording limitation is not fixed by passing infrastructure checks.
+## How isolation works
 
-## Security model
+AI Nexus is a Debian VM behind OPNsense, managed through WireGuard. Rootless
+Podman runs Birdynator with no host-published port. Dedicated proxies grant the
+OpenAI API and read-only BirdNET datasource paths; PostgreSQL and embeddings stay
+on internal networks. Host nftables adds another enforcement layer.
 
-```text
-                                  Internet
-                                     |
-                               Home router
-                                     |
-                                  HOME_LAN
-                                     |
-                                  OPNsense
-                  gateway / firewall / NAT / DNS / logging
-                         /            |             \
-                        /             |              \
-             WireGuard mgmt       AI segment       HOME_LAN services
-                                      |                 |
-                                      v                 v
-                               AI Nexus host         Infra VM
-                             Debian + nftables          |
-                                      |                 |
-                               rootless Podman          |
-                                      |                 |
-                              +--- Birdynator ---+      |
-                              |        |         |      |
-                              |        |         |      |
-                       PostgreSQL   OpenAI    BirdNET   |
-                                  CONNECT     proxy     |
-                                   proxy        |       |
-                                      |         +-------+
-                                      |
-                                      v
-                               api.openai.com
-                                      ^
-                                      |
-                               OPNsense / NAT
-                                      |
-                                   Internet
-```
+Windows carries saved reports to the separate LAN Utility VM. Utility does not
+join the AI bridge or receive AI database credentials. Its feedback queue accepts
+narrow authenticated HTTPS requests; the proposed return path also goes through
+Windows. See [network](docs/network.md) and [runtime](docs/agent-runtime.md).
 
-The important point is that **all routed traffic from the AI segment leaves through OPNsense**:
+## Work safely
 
-- OpenAI traffic: Birdynator -> OpenAI CONNECT proxy -> AI Nexus host -> OPNsense -> Internet -> `api.openai.com:443`.
-- BirdNET datasource traffic: Birdynator -> BirdNET fixed-destination proxy -> AI Nexus host -> OPNsense -> HOME_LAN -> Infra VM/PostgreSQL.
-- Management traffic: management client -> WireGuard on OPNsense -> AI Nexus.
-- Birdynator's own PostgreSQL and embedding service remain local to AI Nexus on internal Podman networks and do not traverse OPNsense.
+`make test` runs offline Python tests; `make repo-check` checks tracked syntax and
+public-repository hygiene. Feedback browser tests use
+`node tests/test_journal_feedback_browser.cjs`. These do not verify a live host.
 
-The security model is layered:
+`make birdynator-update` applies pending migrations, rebuilds/restarts Birdynator
+and verifies its paths. `make verify` checks the full deployed runtime and needs
+live dependencies. Neither is a documentation-only step. Platform bootstrap is
+not a complete one-command reconstruction of every service.
 
-- **OPNsense** is the Layer-3 enforcement point for the AI segment. It provides the AI gateway, firewall policy, NAT, DNS, WireGuard management ingress, routed access to approved LAN services, and upstream egress control/logging.
-- **Debian nftables** provides host-level defense in depth with default-drop inbound/forward policy.
-- **Rootless Podman networks and dedicated proxies** form the workload-capability boundary. Birdynator does not receive broad LAN or Internet access merely because one approved service needs it.
-- **PostgreSQL roles and separate databases** form the data-permission boundary.
-
-Important properties:
-
-- Birdynator has no host-published port.
-- The agent does not receive direct general Internet access.
-- OpenAI egress is restricted to `api.openai.com:443` through a dedicated proxy and still traverses OPNsense.
-- BirdNET access uses a dedicated read-only database role and traverses OPNsense to the approved Infra-hosted datasource.
-- The datasource proxy is isolated from the agent-memory database network.
-- Raw BirdNET rows remain authoritative source data; they are not copied into agent memory.
-- Generated analyses are stored separately from canonical memory.
-
-See [Architecture](docs/architecture.md), [Network](docs/network.md), [Agent runtime](docs/agent-runtime.md), and [Security baseline](docs/security-baseline.md).
-
-## Normal operator workflow
-
-Platform and recovery operations:
-
-```bash
-make plan
-make bootstrap
-make verify
-make repo-check
-make test
-make backup
-make restore-test
-```
-
-`make bootstrap` currently rebuilds the PostgreSQL/runtime foundation used by the platform. It is not yet a complete one-command reconstruction of every modern AI Nexus service.
-
-`make verify` checks the foundation, embedding service, both proxies, and Birdynator in that order, stopping on the first failure. Run it on the fully deployed AI Nexus host with working OpenAI API and BirdNET datasource access. For a foundation-only bootstrap, use `bash scripts/verify.sh`.
-
-Normal Birdynator code iteration:
-
-```bash
-git pull
-make birdynator-update
-```
-
-The update target applies pending migrations, reuses the cached Birdynator base image by default, restarts only Birdynator, and verifies its security/data paths.
-
-To deliberately refresh its Python base image:
-
-```bash
-BIRDYNATOR_REFRESH_BASE=1 make birdynator-update
-```
-
-Run an analysis:
-
-```bash
-podman exec agent-birdynator \
-  python /app/birdynator.py analyze-birdnet
-```
-
-List persisted analyses:
-
-```bash
-podman exec agent-birdynator \
-  python /app/birdynator.py analysis-history
-```
-
-## State and recovery
-
-AI Nexus separates disposable runtime from durable state.
-
-Durable Birdynator state includes:
-
-- canonical memory
-- embeddings and embedding-model metadata
-- persisted analysis history
-
-Logical PostgreSQL dumps complement Proxmox snapshots/backups. The logical restore path has been tested.
-
-See [Backup and recovery](docs/backup-recovery.md).
-
-## Repository policy
-
-This repository is public.
-
-Never commit:
-
-- passwords or API keys
-- SSH/WireGuard private keys or pre-shared keys
-- tokens
-- WAN addressing
-- exact private addressing/topology from the live environment
-- screenshots containing sensitive infrastructure details
-
-Use symbolic names in documentation and keep environment-specific values in ignored local configuration.
-
-Review author/committer metadata before publishing, and keep raw troubleshooting logs and captures out of the checkout. See [Repository workflow](docs/repository-workflow.md) for transfer, line-ending, attribution and publication checks.
-
-## Journal status — October 3, 2026
-
-Operator-provided deployment results confirm narrative v2.8 is installed on AI
-Nexus. The earlier v2.7 update added the persisted Journal report and aggregate
-evidence to existing analysis parameters. Both deployment workflows passed 40
-offline tests, repository hygiene and Birdynator-specific runtime verification.
-These results do not claim a new full-stack verification or certify model prose.
-
-Saved analysis 13 used a temporary v2.9 trial, aiming for roughly 400–600 words
-when useful evidence supports a longer story. This trial does not establish
-permanent v2.9 installation. Quiet days can remain shorter; padding adds no value.
-
-The operator also published the static Journal on Utility, including descriptive
-source links, weekday dates and the green logo. Publishing is triggered manually
-from Windows over the existing management and LAN paths. Source integration and
-the daily-sync update were subsequently published, followed by the Quadlet timer
-validation fix in `769c2b8`. Operator output confirmed 58 tests, repository hygiene
-and full deployed security verification during the update. The evening timer is
-enabled and active, with its first eligible generation on October 4 at 21:00
-Pacific. No completed scheduled analysis has yet been verified. Utility's latest
-publication applies the latest-per-source-date reading view and retains earlier
-reports. Permanent narrative remains v2.8; the v2.9 trial was not promoted.
-
-See [how observations become a Journal page](docs/birdynator-journal.md) for the
-workflow, trust boundaries and remaining reconstruction gap. This status records
-operator evidence; it is not a fresh inspection of the live hosts or remote Git.
-
-## Start here
-
-For a compact overview of the project and the important reading order, see [Executive summary](docs/executive-summary.md).
-
-Detailed references:
-
-- [Architecture](docs/architecture.md)
-- [Birdynator analysis](docs/birdynator-analysis.md)
-- [Birdynator Journal](docs/birdynator-journal.md) — from observations to the evening page
-- [Daily generation and manual sync](docs/daily-journal.md) — evening schedule and publishing workflow
-- [Agent runtime](docs/agent-runtime.md)
-- [Reproducible runtime](docs/reproducible-runtime.md)
-- [Decision log](docs/decisions.md)
-- [Network](docs/network.md)
-- [Management access](docs/management-access.md)
-- [SSH troubleshooting](docs/ssh-troubleshooting.md) — current findings and recurrence procedure
-- [Repository workflow](docs/repository-workflow.md)
-- [Security baseline](docs/security-baseline.md)
-- [Backup and recovery](docs/backup-recovery.md)
-- [Break-glass recovery](docs/break-glass-recovery.md)
+Follow [repository workflow](docs/repository-workflow.md) before publishing and
+[reproducible runtime](docs/reproducible-runtime.md) before deploying. Keep secrets,
+private addressing, raw reports and operator receipts out of this public repository.

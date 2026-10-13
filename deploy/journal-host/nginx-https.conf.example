@@ -1,0 +1,26 @@
+# PROPOSED parallel HTTPS reading site. Not directly installable.
+# Keep live addressing/certificate paths in private operator configuration.
+# The feedback route is deliberately absent until its service/auth design is approved.
+server {
+    listen UTILITY_LAN_IP:443 ssl;
+    server_name _;
+    root /srv/birdynator-journal/current;
+    index index.html;
+    autoindex off;
+
+    ssl_certificate JOURNAL_SERVER_CERTIFICATE_PATH;
+    ssl_certificate_key JOURNAL_SERVER_PRIVATE_KEY_PATH;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    allow HOME_LAN_CIDR;
+    deny all;
+    add_header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    location / {
+        limit_except GET { deny all; }
+        try_files $uri $uri/ =404;
+    }
+    location ~ (^|/)\. { deny all; }
+}

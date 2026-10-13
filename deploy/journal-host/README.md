@@ -1,4 +1,4 @@
-# Utility static Journal hosting
+# Journal hosting and review collection
 
 Utility remains on the home LAN. Do not attach it to the AI bridge. It needs nginx,
 Python 3 and the existing administrator SSH/sudo path, not agent or database credentials.
@@ -35,3 +35,18 @@ published material; same-host release history is not a disaster-recovery backup.
 Automatic retention and a restricted unattended publishing account are not implemented.
 Do not delete releases, upload staging or configuration backups until their recovery
 value and any active publication have been checked.
+## Feedback operations
+
+HTTP/HTTPS reading and personal feedback collection live on Utility; the host has
+no AI Nexus connection. The operator has verified HTTPS, login/status and feedback
+across PC and Android. AI feedback import remains an unapproved proposal.
+
+`feedback_config.py` is the canonical renderer for authentication/status nginx
+routes. There is no second hand-maintained commented copy. Initial installation,
+guarded resume, UI update and certificate renewal retain separate bounded recovery
+paths because they operate on different existing states. Completed installers are
+not routine launchers: inspect receipts before retries.
+
+See the [feedback guide](../../docs/journal-feedback.md),
+[recovery guide](../../docs/journal-feedback-recovery.md) and
+[HTTPS plan](../../docs/journal-https-plan.md) for maintenance and release gates.

@@ -95,7 +95,8 @@ and [calendar](https://github.com/systemd/systemd/blob/main/man/systemd.time.xml
 Operator output on October 3 confirmed the timer enabled and active after the
 Quadlet validation fix. Its private start guard is October 4, so the October 3
 calendar wake requests no analysis. The first eligible generation is October 4
-at 21:00 Pacific. A completed scheduled model run has not yet been verified.
+at 21:00 Pacific. Saved reports for October 5–11 were subsequently reviewed against reproduced
+evidence in the historical trial. See [release status](birdynator-releases.md).
 The source update and timer fix were published as `2834f26` and `769c2b8`.
 
 ### Which reports appear on the homepage

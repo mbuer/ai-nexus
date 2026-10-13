@@ -6,6 +6,7 @@ import json
 import math
 import re
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -291,6 +292,14 @@ def render_html(report):
         f'<pre>{provenance}</pre></details><footer>Birdynator · A personal record of what caught our attention.</footer>')
 
 
+def reading_provenance(report):
+    """Keep full request data in structured JSON rather than duplicate it in reading exports."""
+    provenance = dict(report['provenance'])
+    if isinstance(provenance.get('journal_trial'), dict):
+        provenance['journal_trial'] = {key: value for key, value in provenance['journal_trial'].items() if key != 'request'}
+    return provenance
+
+
 def render_trial_html(report):
     titles = source_titles(report)
     sections = [('todays_story', {'text': report['todays_story']})]
@@ -307,8 +316,7 @@ def render_trial_html(report):
         if item and item['text'].strip():
             body += f'<section class="story"><h2>{LABELS[key]}</h2>{paragraphs(item["text"], titles)}</section>'
     # Actual request and source observations remain in structured JSON, not duplicated inline.
-    provenance = dict(report['provenance'])
-    provenance['journal_trial'] = {key: value for key, value in provenance['journal_trial'].items() if key != 'request'}
+    provenance = reading_provenance(report)
     body += '<details><summary>Coverage and provenance</summary><p>Classifier records are not verified individuals. Missing labels do not establish absence; recorder health is unknown. Earlier topics are editorial context, not observations or accepted memory.</p><pre>'
     body += html.escape(json.dumps(provenance, ensure_ascii=False, indent=2)) + '</pre></details>'
     return document(report['headline'], body).replace('</style>', 'main{max-width:780px}.story{margin-bottom:38px}.story h2{border-top:1px solid var(--line);padding-top:25px}</style>')
@@ -323,7 +331,10 @@ def render_markdown(report):
         text = '\n\n'.join(i['text'] for i in items if i and i['text'].strip())
         if text:
             parts += [f'## {LABELS[key]}', text]
-    parts += ['## Provenance', json.dumps(report['provenance'], ensure_ascii=False, indent=2)]
+    parts += ['## Provenance', json.dumps(reading_provenance(report), ensure_ascii=False, indent=2)]
+    if isinstance(report['provenance'].get('journal_trial'), dict) and 'request' in report['provenance']['journal_trial']:
+        stem = f'{report["date"]}-{report["provenance"]["analysis_id"]}'
+        parts += [f'[Structured report and exact model request]({stem}.json)']
     return '\n\n'.join(parts) + '\n'
 
 
@@ -346,12 +357,27 @@ def homepage_entries(entries):
     return visible
 
 
-def export(report, directory, *, update_index=True):
+def export(report, directory, *, update_index=True, feedback_record=None):
     validate(report)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     stem = f'{report["date"]}-{report["provenance"]["analysis_id"]}'
-    atomic_write(directory / f'{stem}.html', render_html(report))
+    page = render_html(report)
+    if feedback_record is not None:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from journal_feedback.contract import target
+        from journal_feedback.rendering import decorate
+        identity = target(feedback_record)
+        if (str(identity['analysis_id']) != report['provenance']['analysis_id']
+                or identity['model'] != report['provenance']['model']
+                or identity['source_digest'] != report['provenance']['source_digest']):
+            raise ValueError('Review target differs from the rendered report')
+        from journal_feedback.contract import SECTIONS
+        original = report_from_analysis(feedback_record)
+        if any(report.get(key) != original.get(key) for key in SECTIONS):
+            raise ValueError('Review narrative differs from the raw saved analysis')
+        page = decorate(page, feedback_record, [key for key in SECTIONS if report.get(key)])
+    atomic_write(directory / f'{stem}.html', page)
     atomic_write(directory / f'{stem}.md', render_markdown(report))
     atomic_write(directory / f'{stem}.json', json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False))
     if update_index:
@@ -389,10 +415,12 @@ def main():
     parser.add_argument('--evidence', type=Path, help='Exact evidence packet matching source_digest')
     parser.add_argument('--headline')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--feedback-enabled', action='store_true', help='Opt-in UI only after Utility feedback service activation')
     args = parser.parse_args()
     record = json.loads(args.analysis_json.read_text(encoding='utf-8-sig'))
     evidence = json.loads(args.evidence.read_text(encoding='utf-8-sig')) if args.evidence else None
-    print(export(report_from_analysis(record, evidence, args.headline), args.output))
+    print(export(report_from_analysis(record, evidence, args.headline), args.output,
+                 feedback_record=record if args.feedback_enabled else None))
 
 
 if __name__ == '__main__':

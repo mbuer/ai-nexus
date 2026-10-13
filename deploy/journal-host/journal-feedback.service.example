@@ -1,0 +1,36 @@
+# Candidate only. Provision account, private config/state and reviewed nginx
+# authentication before installation. No new TCP port is needed.
+[Unit]
+Description=Birdynator personal editorial feedback queue
+After=network.target
+
+[Service]
+Type=simple
+User=journal-feedback
+Group=www-data
+WorkingDirectory=/opt/birdynator-journal-feedback
+ExecStart=/usr/bin/python3 -B -m journal_feedback.server --config /etc/birdynator-journal-feedback/service.json
+RuntimeDirectory=journal-feedback
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=no
+StateDirectory=journal-feedback
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateNetwork=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+MemoryMax=128M
+TasksMax=8
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

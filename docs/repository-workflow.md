@@ -1,5 +1,38 @@
 # Repository updates and public hygiene
 
+## Rules for this public repository
+
+Keep credentials, private keys, tokens, live addresses/subnets, WireGuard peer
+values, MAC addresses, private hostnames, personal usernames, VM/job identifiers,
+environment-specific paths and sensitive screenshots out of Git. Use symbolic
+names such as `HOME_LAN`, `WG_NET`, `AI_NET`, `AI_HOST` and `AI_GATEWAY`.
+Safe examples live in `config/network.example.yaml`; real values belong in ignored
+`config/network.local.yaml`. Review attribution as well as file contents.
+
+Architectural changes require the relevant subsystem documentation and decision
+log first. Preserve OPNsense enforcement, WireGuard-only AI management, the
+independent home LAN, internal agent networks, narrow proxies and read-only source
+access. Do not attach Utility or an agent broadly to the AI/LAN networks for
+convenience. IPv6 remains disabled on the AI segment. GitHub SSH uses its HTTPS
+port path; do not broadly open outbound SSH to fix Git access.
+
+Routine administration uses a named non-root account; root is break-glass only.
+Keep host/container hardening and the verified recovery chain. A fresh logical
+PostgreSQL backup must complete before the VM backup proceeds. Source observations,
+generated analyses, editorial feedback and canonical memory have separate ownership;
+model output does not become canonical memory automatically.
+
+The current work requires explicit operator approval before remote Git access,
+commits, pushes, schema changes, credential/service activation or deployment.
+An approved inspection is not deployment approval. Keep the approved Journal trial
+prompt frozen during its evaluation and leave Grafana unchanged. Choose a small,
+reversible change, validate it and update the relevant operating documentation.
+
+See [architecture](architecture.md), [security baseline](security-baseline.md),
+[network](network.md) and [recovery](backup-recovery.md) for enforcement details.
+For failures, distinguish management ingress, AI egress, DNS and application
+behavior; an intentionally blocked ping is not proof of broken routing.
+
 ## Keep deployment and publication distinct
 
 The AI host checkout, a review workstation checkout and the remote repository can

@@ -1,0 +1,2 @@
+# Optional Windows certificate preparation and its offline tests; not agent dependencies.
+cryptography==50.0.2
